@@ -331,7 +331,10 @@ function updateVolumeUI() {
 
 function bindAudioEvents() {
     playPauseBtn.onclick = () => {
-        if (!playerState.currentPlaying) return;
+        if (!playerState.currentPlaying) {
+            if (playerState.playlist.length > 0) playMusic(playerState.playlist[0]);
+            return;
+        }
         
         if (playerState.outputDevice === 'browser') {
             if (audio.paused) audio.play();
@@ -374,13 +377,22 @@ function bindAudioEvents() {
         }
     };
 
-    progressBarBg.onclick = (e) => {
+    let isProgressDragging = false;
+    progressBarBg.addEventListener('mousedown', (e) => {
         if (!audio.duration || playerState.outputDevice !== 'browser') return;
+        isProgressDragging = true;
         const rect = progressBarBg.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const percent = clickX / rect.width;
-        audio.currentTime = percent * audio.duration;
-    };
+        audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+    });
+    window.addEventListener('mousemove', (e) => {
+        if (isProgressDragging && audio.duration && playerState.outputDevice === 'browser') {
+            const rect = progressBarBg.getBoundingClientRect();
+            let percent = (e.clientX - rect.left) / rect.width;
+            if (percent < 0) percent = 0; if (percent > 1) percent = 1;
+            audio.currentTime = percent * audio.duration;
+        }
+    });
+    window.addEventListener('mouseup', () => { isProgressDragging = false; });
     
     // YENİ: Ses Olayları (Volume Events)
     if (audio) {
@@ -388,8 +400,9 @@ function bindAudioEvents() {
         updateVolumeUI();
     }
 
+    let isVolumeDragging = false;
     if (volumeBarBg) {
-        volumeBarBg.onclick = (e) => {
+        const updateVolume = (e) => {
             const rect = volumeBarBg.getBoundingClientRect();
             let percent = (e.clientX - rect.left) / rect.width;
             if (percent < 0) percent = 0;
@@ -401,6 +414,10 @@ function bindAudioEvents() {
             if (audio) audio.volume = playerState.volume;
             updateVolumeUI();
         };
+
+        volumeBarBg.addEventListener('mousedown', (e) => { isVolumeDragging = true; updateVolume(e); });
+        window.addEventListener('mousemove', (e) => { if (isVolumeDragging) updateVolume(e); });
+        window.addEventListener('mouseup', () => { isVolumeDragging = false; });
     }
 
     if (btnMute) {
