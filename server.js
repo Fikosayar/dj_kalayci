@@ -211,7 +211,8 @@ app.post('/api/music/play-server', (req, res) => {
     }
 
     // mpg123 ile sunucu üzerinden çalma (Sade ve güçlü mp3 çözücü)
-    currentServerProcess = exec(`mpg123 "${filePath}"`, (error, stdout, stderr) => {
+    // -o alsa ekleyerek çıkışı kesin olarak ALSA üzerinden vermeye zorluyoruz
+    currentServerProcess = exec(`mpg123 -o alsa "${filePath}"`, (error, stdout, stderr) => {
         if (error) {
             console.error('Sunucuda çalma hatası (mpg123):', error.message);
         }

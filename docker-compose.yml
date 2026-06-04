@@ -10,6 +10,9 @@ services:
     # İŞTE KRİTİK NOKTA: Debian sunucunun ses kartını içeri aktarıyoruz
     devices:
       - "/dev/snd:/dev/snd"
+    # Ses grubuna (audio) dahil ediyoruz ki yetki sorunu yaşanmasın
+    group_add:
+      - audio
     volumes:
       # Uploads klasörünü kalıcı yapıyoruz
       - dj_kalayci_uploads:/app/uploads

@@ -136,6 +136,8 @@ services:
       - '8106:8106'
     devices:
       - '/dev/snd:/dev/snd'
+    group_add:
+      - audio
     volumes:
       - 'dj_kalayci_uploads:/app/uploads'
 volumes:
