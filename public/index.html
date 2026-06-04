@@ -39,6 +39,10 @@
 
             <div class="sidebar-bottom">
                 <ul class="nav-links">
+                    <li id="btn-output-devices">
+                        <span class="material-symbols-rounded">speaker</span>
+                        Çıkış Cihazı
+                    </li>
                     <li data-target="settings">
                         <span class="material-symbols-rounded">settings</span>
                         Ayarlar
@@ -234,5 +238,22 @@
 
     <script src="js/ScreenManager.js"></script>
     <script src="js/main.js"></script>
+
+    <!-- Cihaz Seçim Modalı -->
+    <div id="device-modal" class="modal-backdrop" style="display: none;">
+        <div class="modal-content glass-effect fade-in">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h2 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <span class="material-symbols-rounded" style="color: var(--accent-color);">speaker</span>
+                    Çıkış Cihazı Seç
+                </h2>
+                <button id="btn-close-modal" class="control-btn"><span class="material-symbols-rounded">close</span></button>
+            </div>
+            
+            <div id="device-list" style="display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 8px;">
+                <!-- Cihazlar dinamik gelecek -->
+            </div>
+        </div>
+    </div>
 </body>
 </html>

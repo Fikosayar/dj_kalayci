@@ -288,3 +288,26 @@ input:checked + .slider:before { transform: translateX(22px); }
 .control-btn:hover { color: white; transform: scale(1.1); }
 .control-btn.active { color: var(--accent-color); }
 .play-btn:hover { transform: scale(1.05); background: var(--accent-hover); }
+
+/* Modal Styles */
+.modal-backdrop {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px); z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+}
+.modal-content {
+    width: 100%; max-width: 500px; padding: 32px;
+}
+.device-card {
+    display: flex; align-items: center; gap: 16px; padding: 16px;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+    border-radius: 12px; cursor: pointer; transition: all 0.2s ease;
+}
+.device-card:hover {
+    background: rgba(255,255,255,0.1); transform: translateY(-2px);
+}
+.device-card.active {
+    border-color: var(--accent-color); background: rgba(59, 130, 246, 0.15);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.2);
+}

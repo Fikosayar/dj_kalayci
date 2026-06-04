@@ -3,6 +3,9 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const mm = require('music-metadata');
+const { exec } = require('child_process');
+
+let currentServerProcess = null; // Sunucuda çalan müziğin process kaydı
 
 const app = express();
 app.use(express.json()); // JSON body parse etmek için
@@ -182,6 +185,45 @@ app.get('/api/music/cover/:filename', async (req, res) => {
         console.error('Metadata okuma hatası:', error.message);
         res.status(500).json({ error: 'Metadata okunamadı' });
     }
+});
+
+// --- SES CİHAZLARI VE SUNUCU UZAKTAN KUMANDA API'LERİ ---
+
+app.get('/api/devices', (req, res) => {
+    res.json([
+        { id: 'browser', name: 'Kendi Cihazım (Tarayıcı)', icon: 'laptop_mac', description: 'Müzik şu anki cihazınızdan çalar.' },
+        { id: 'debian_alsa', name: 'Sunucu Hoparlörü', icon: 'speaker', description: 'Müzik ana sunucu (Debian) hoparlöründen çalar.' }
+    ]);
+});
+
+app.post('/api/music/play-server', (req, res) => {
+    const { filename } = req.body;
+    if (!filename) return res.status(400).json({ error: 'Dosya adı gerekli' });
+
+    const config = getConfig();
+    const filePath = path.join(config.uploadPath, filename);
+
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Dosya bulunamadı' });
+
+    if (currentServerProcess) {
+        currentServerProcess.kill('SIGKILL');
+        currentServerProcess = null;
+    }
+
+    // ALSA veya doğrudan sunucu üzerinden çalma (ffplay veya mplayer)
+    currentServerProcess = exec(`ffplay -nodisp -autoexit "${filePath}"`, (error) => {
+        if (error) console.error('Sunucuda çalma hatası (ffplay yüklü olmayabilir):', error.message);
+    });
+
+    res.json({ success: true, message: 'Sunucuda çalınmaya başlandı.' });
+});
+
+app.post('/api/music/stop-server', (req, res) => {
+    if (currentServerProcess) {
+        currentServerProcess.kill('SIGKILL');
+        currentServerProcess = null;
+    }
+    res.json({ success: true });
 });
 
 const PORT = process.env.PORT || 8106;

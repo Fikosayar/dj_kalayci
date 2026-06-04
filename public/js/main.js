@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const screenManager = new ScreenManager('screen-container');
     screenManager.navigate('home');
 
-    const navItems = document.querySelectorAll('.nav-links li');
+    const navItems = document.querySelectorAll('.nav-links li[data-target]');
     navItems.forEach(item => {
         item.addEventListener('click', (e) => {
             const targetScreen = e.currentTarget.getAttribute('data-target');
@@ -20,6 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (screen === 'upload') initUploadLogic();
         if (screen === 'player') initPlayerLogic();
     });
+
+    initDeviceModal();
 });
 
 // --- SETTINGS: DIRECTORY BROWSER ---
@@ -85,6 +87,74 @@ function updatePathUI(path, isSuccess) {
     }
 }
 
+// --- OUTPUT DEVICE MODAL LOGIC ---
+function initDeviceModal() {
+    const btnOpen = document.getElementById('btn-output-devices');
+    const modal = document.getElementById('device-modal');
+    const btnClose = document.getElementById('btn-close-modal');
+    
+    if (btnOpen) btnOpen.onclick = () => {
+        modal.style.display = 'flex';
+        fetchDevices();
+    };
+    if (btnClose) btnClose.onclick = () => {
+        modal.style.display = 'none';
+    };
+    if (modal) modal.onclick = (e) => {
+        if (e.target === modal) modal.style.display = 'none';
+    };
+}
+
+function fetchDevices() {
+    fetch('/api/devices')
+        .then(res => res.json())
+        .then(devices => {
+            const list = document.getElementById('device-list');
+            list.innerHTML = '';
+            devices.forEach(device => {
+                const isActive = playerState.outputDevice === device.id;
+                const card = document.createElement('div');
+                card.className = `device-card ${isActive ? 'active' : ''}`;
+                card.innerHTML = `
+                    <span class="material-symbols-rounded" style="font-size: 32px; color: ${isActive ? 'var(--accent-color)' : 'var(--text-secondary)'}">${device.icon}</span>
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0; font-size: 16px;">${device.name}</h4>
+                        <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-secondary);">${device.description}</p>
+                    </div>
+                    ${isActive ? '<span class="material-symbols-rounded" style="color: var(--success);">check_circle</span>' : ''}
+                `;
+                card.onclick = () => selectDevice(device.id);
+                list.appendChild(card);
+            });
+        });
+}
+
+function selectDevice(deviceId) {
+    playerState.outputDevice = deviceId;
+    const modal = document.getElementById('device-modal');
+    if (modal) modal.style.display = 'none';
+    
+    if (playerState.currentPlaying) {
+        if (deviceId === 'browser') {
+            fetch('/api/music/stop-server', { method: 'POST' });
+            if (audio) {
+                audio.src = `/api/music/play/${encodeURIComponent(playerState.currentPlaying)}`;
+                audio.play();
+            }
+        } else {
+            if (audio) audio.pause();
+            fetch('/api/music/play-server', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: playerState.currentPlaying })
+            });
+            playerState.isPlaying = true;
+            if (playPauseIcon) playPauseIcon.innerText = 'pause';
+        }
+    }
+}
+
+
 // --- UPLOAD LOGIC ---
 function initUploadLogic() {
     const dropZone = document.getElementById('drop-zone');
@@ -137,14 +207,14 @@ function initUploadLogic() {
 // --- MUSIC PLAYER LOGIC ---
 let playerState = {
     page: 1, limit: 25, totalPages: 1,
-    playlist: [], // Şu an ekrandaki sayfalanmış dosyalar
+    playlist: [],
     currentPlaying: null,
     isPlaying: false,
     isShuffle: false,
-    isLoop: false
+    isLoop: false,
+    outputDevice: 'browser' // Varsayılan cihaz
 };
 
-// DOM Elemanlarını Cashlemek için
 let audio, playPauseBtn, playPauseIcon, btnNext, btnPrev, btnShuffle, btnLoop;
 let progressBarBg, progressBarFill, progressBarHandle, timeCurrent, timeTotal;
 let coverArtImg, defaultCoverIcon, trackNameEl;
@@ -228,7 +298,6 @@ function loadMusicList() {
         });
 }
 
-// FORMAT TIME HELPER
 function formatTime(seconds) {
     if (isNaN(seconds)) return "00:00";
     const m = Math.floor(seconds / 60);
@@ -237,11 +306,28 @@ function formatTime(seconds) {
 }
 
 function bindAudioEvents() {
-    // Play/Pause
     playPauseBtn.onclick = () => {
         if (!playerState.currentPlaying) return;
-        if (audio.paused) audio.play();
-        else audio.pause();
+        
+        if (playerState.outputDevice === 'browser') {
+            if (audio.paused) audio.play();
+            else audio.pause();
+        } else {
+            // Sunucu modu için Stop/Play isteği
+            if (playerState.isPlaying) {
+                fetch('/api/music/stop-server', { method: 'POST' });
+                playerState.isPlaying = false;
+                playPauseIcon.innerText = 'play_arrow';
+            } else {
+                fetch('/api/music/play-server', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: playerState.currentPlaying })
+                });
+                playerState.isPlaying = true;
+                playPauseIcon.innerText = 'pause';
+            }
+        }
     };
 
     audio.onplay = () => {
@@ -253,8 +339,9 @@ function bindAudioEvents() {
         playPauseIcon.innerText = 'play_arrow';
     };
 
-    // Time Update & Progress Bar
     audio.ontimeupdate = () => {
+        if (playerState.outputDevice !== 'browser') return; // Sunucudan çalıyorsa progress bar'ı geçici devredışı bırakırız
+        
         timeCurrent.innerText = formatTime(audio.currentTime);
         if (audio.duration) {
             timeTotal.innerText = formatTime(audio.duration);
@@ -264,16 +351,14 @@ function bindAudioEvents() {
         }
     };
 
-    // Seek Click
     progressBarBg.onclick = (e) => {
-        if (!audio.duration) return;
+        if (!audio.duration || playerState.outputDevice !== 'browser') return;
         const rect = progressBarBg.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const percent = clickX / rect.width;
         audio.currentTime = percent * audio.duration;
     };
 
-    // Audio Ended (Next track logic)
     audio.onended = () => {
         if (playerState.isLoop) {
             audio.currentTime = 0;
@@ -283,11 +368,9 @@ function bindAudioEvents() {
         }
     };
 
-    // Next / Prev Buttons
     btnNext.onclick = playNext;
     btnPrev.onclick = playPrev;
 
-    // Shuffle / Loop Toggles
     btnShuffle.onclick = () => {
         playerState.isShuffle = !playerState.isShuffle;
         btnShuffle.classList.toggle('active', playerState.isShuffle);
@@ -309,8 +392,8 @@ function getNextTrack(direction = 1) {
     if (currentIndex === -1) currentIndex = 0;
     else {
         currentIndex += direction;
-        if (currentIndex >= playerState.playlist.length) currentIndex = 0; // Başa dön
-        if (currentIndex < 0) currentIndex = playerState.playlist.length - 1; // Sona git
+        if (currentIndex >= playerState.playlist.length) currentIndex = 0;
+        if (currentIndex < 0) currentIndex = playerState.playlist.length - 1;
     }
     return playerState.playlist[currentIndex];
 }
@@ -327,7 +410,7 @@ function playPrev() {
 function playMusic(filename) {
     playerState.currentPlaying = filename;
     
-    // UI Güncelleme (Playing Sınıfı)
+    // UI Güncelleme
     document.querySelectorAll('.music-item').forEach(el => {
         const spans = el.querySelectorAll('span');
         const itemName = spans[1].innerText;
@@ -344,7 +427,7 @@ function playMusic(filename) {
     
     trackNameEl.innerText = filename;
     
-    // Fetch Cover Art
+    // Kapak Resmi Getirme
     fetch(`/api/music/cover/${encodeURIComponent(filename)}`)
         .then(res => {
             if (res.ok) return res.blob();
@@ -361,6 +444,31 @@ function playMusic(filename) {
             defaultCoverIcon.style.opacity = '1';
         });
 
-    audio.src = `/api/music/play/${encodeURIComponent(filename)}`;
-    audio.play().catch(e => console.error("Otomatik oynatma engellendi", e));
+    // Cihaza Göre Oynatma Mantığı
+    if (playerState.outputDevice === 'browser') {
+        fetch('/api/music/stop-server', { method: 'POST' }); // Sunucuyu durdur
+        audio.src = `/api/music/play/${encodeURIComponent(filename)}`;
+        audio.play().catch(e => console.error("Otomatik oynatma engellendi", e));
+        
+        // Progress Bar'ı Aktifleştir
+        progressBarBg.style.pointerEvents = 'auto';
+        progressBarBg.style.opacity = '1';
+    } else {
+        audio.pause();
+        fetch('/api/music/play-server', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: filename })
+        });
+        playerState.isPlaying = true;
+        playPauseIcon.innerText = 'pause';
+        
+        // Sunucu modunda tarayıcıdan progress takip edilemeyeceği için kapat
+        progressBarBg.style.pointerEvents = 'none';
+        progressBarBg.style.opacity = '0.5';
+        timeCurrent.innerText = '--:--';
+        timeTotal.innerText = '--:--';
+        progressBarFill.style.width = '0%';
+        progressBarHandle.style.left = '0%';
+    }
 }
