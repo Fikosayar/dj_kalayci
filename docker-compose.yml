@@ -13,9 +13,6 @@ services:
     volumes:
       # Uploads klasörünü kalıcı yapıyoruz
       - dj_kalayci_uploads:/app/uploads
-      # Config dosyasını kalıcı yapıyoruz (isteğe bağlı)
-      - dj_kalayci_config:/app/config.json
 
 volumes:
   dj_kalayci_uploads:
-  dj_kalayci_config:
