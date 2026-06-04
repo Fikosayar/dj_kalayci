@@ -9,6 +9,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initDirection();
 
   const sm = new ScreenManager("main-content");
+  window.sm = sm;
 
   const nav = document.querySelectorAll(".nav-links li[data-target]");
   nav.forEach((li) => li.addEventListener("click", () => {
@@ -23,7 +24,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (t) t.textContent = SCREEN_TITLES[s] || "";
     if (s === "settings") initDirectoryBrowser();
     if (s === "upload") initUpload();
-    if (s === "player") Player.init();
+    if (s === "player" || s === "party") Player.init();
     if (s === "home") {
       window._currentArtState = "";
       if (window.updateVisualArt) window.updateVisualArt();
@@ -84,16 +85,23 @@ function reflectDemoBadge(isDemo) {
 }
 
 /* ---------------- device modal ---------------- */
+/* ---------------- device modal ---------------- */
 function initDeviceModal() {
   const modal = document.getElementById("device-modal");
   const open = document.getElementById("btn-output-devices");
-  const pill = document.getElementById("device-pill");
   const close = document.getElementById("btn-close-modal");
+  const btnParty = document.getElementById("btn-party");
+  
   const show = () => { modal.classList.add("show"); renderDevices(); };
   if (open) open.onclick = show;
-  if (pill) pill.onclick = show;
   if (close) close.onclick = () => modal.classList.remove("show");
   if (modal) modal.onclick = (e) => { if (e.target === modal) modal.classList.remove("show"); };
+  
+  if (btnParty) {
+    btnParty.onclick = () => {
+      if (window.sm) window.sm.navigate("party");
+    };
+  }
 }
 
 async function renderDevices() {

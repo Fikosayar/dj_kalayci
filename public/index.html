@@ -62,9 +62,9 @@
           <span id="demo-badge" class="device-pill"
             style="display:none; cursor:default; font-family:var(--font-mono); font-size:11px; letter-spacing:.1em;">DEMO
             MODU</span>
-          <button id="device-pill" class="device-pill">
-            <span class="material-symbols-rounded">speaker</span>
-            <span class="dp-name">Tarayıcı</span>
+          <button id="btn-party" class="device-pill" style="background:var(--accent); color:#fff; border:none;">
+            <span class="material-symbols-rounded">celebration</span>
+            <span class="dp-name">Parti</span>
           </button>
           <div class="dir-switch">
             <button data-dir="a">Gün Batımı</button>
@@ -261,6 +261,57 @@
 volumes:
   dj_kalayci_uploads: null</pre>
             </details>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <template id="screen-party">
+    <div class="screen fade-in" style="position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999; background:#0f0f13; display:flex; align-items:flex-end; justify-content:flex-start; padding: 40px; box-sizing:border-box;">
+      
+      <!-- Kapatma Tuşu -->
+      <button onclick="document.querySelector('.nav-links li[data-target=\'home\']').click()" style="position:absolute; top:30px; right:40px; background:transparent; border:none; color:var(--ink-soft); cursor:pointer; padding:10px; border-radius:50%; transition:all 0.2s;" onmouseover="this.style.color='#fff'; this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.color='var(--ink-soft)'; this.style.background='transparent'"><span class="material-symbols-rounded" style="font-size:36px;">close</span></button>
+
+      <!-- Player (Kapaksız) -->
+      <div class="card player-main" style="width: 500px; padding: 25px; margin: 0; display:block;">
+        
+        <!-- Gizli Kuklalar (Player.js çökmesin diye) -->
+        <div style="display:none">
+          <img id="cover-art-img">
+          <div id="cover-ph"></div>
+          <div id="music-list"></div>
+          <select id="limit-select"></select>
+          <button id="btn-prev-page"></button>
+          <button id="btn-next-page"></button>
+          <span id="page-indicator"></span>
+        </div>
+
+        <div class="track-meta" style="text-align:left; padding:0; margin-bottom: 20px;">
+          <h2 id="track-title" style="font-size: 20px; font-weight:600; margin-bottom: 6px;">Müzik seçilmedi</h2>
+          <span id="track-sub" style="font-size: 13px; color:var(--ink-soft);">DJ_Kalayci</span>
+        </div>
+
+        <div class="wave-wrap" style="margin-bottom: 25px;">
+          <div id="wave" class="wave"></div>
+          <div class="wave-time"><span id="time-current">00:00</span><span id="time-total">00:00</span></div>
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div class="controls" style="margin:0; background:transparent; border:none; padding:0; justify-content:flex-start; gap:12px;">
+            <button id="btn-shuffle" class="ctrl" title="Karışık"><span class="material-symbols-rounded">shuffle</span></button>
+            <button id="btn-prev" class="ctrl"><span class="material-symbols-rounded">skip_previous</span></button>
+            <button id="btn-play" class="play-btn" style="width:46px; height:46px;"><span id="play-icon" class="material-symbols-rounded">play_arrow</span></button>
+            <button id="btn-next" class="ctrl"><span class="material-symbols-rounded">skip_next</span></button>
+            <button id="btn-loop" class="ctrl" title="Döngü"><span class="material-symbols-rounded">repeat</span></button>
+          </div>
+
+          <div class="volume" style="margin-left: 20px;">
+            <button id="btn-mute" class="btn-mute"><span id="mute-icon" class="material-symbols-rounded">volume_up</span></button>
+            <div id="vbar" class="vbar">
+              <div id="vbar-fill" class="vbar-fill"></div>
+              <div id="vbar-handle" class="vbar-handle"></div>
+            </div>
           </div>
         </div>
       </div>
