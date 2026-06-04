@@ -251,13 +251,12 @@
     <!-- Cihaz Seçim Modalı -->
     <div id="device-modal" class="modal-backdrop" style="display: none;">
         <div class="modal-content glass-effect fade-in">
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 32px;">
-                <div style="width: 40px; height: 40px; background: var(--accent-color); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                    <span class="material-symbols-rounded" style="color: white;">headphones</span>
-                </div>
-                <h2 style="margin: 0; font-size: 20px;">DJ_Kalayci <span style="font-size: 12px; color: var(--text-secondary);">v1.1</span></h2>
-            </div>
-            <button id="btn-close-modal" class="control-btn"><span class="material-symbols-rounded">close</span></button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h2 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <span class="material-symbols-rounded" style="color: var(--accent-color);">speaker</span>
+                    Çıkış Cihazı Seç
+                </h2>
+                <button id="btn-close-modal" class="control-btn"><span class="material-symbols-rounded">close</span></button>
             </div>
             
             <div id="device-list" style="display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 8px;">
