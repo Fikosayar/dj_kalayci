@@ -300,6 +300,7 @@ const Player = (() => {
   function setPlayIcon() {
     if (el.playIcon) el.playIcon.textContent = state.isPlaying ? "pause" : "play_arrow";
     updateMini();
+    if (window.updateVisualArt) window.updateVisualArt();
   }
   function markRow() {
     document.querySelectorAll(".track-row").forEach((row) => {

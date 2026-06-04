@@ -24,6 +24,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (s === "settings") initDirectoryBrowser();
     if (s === "upload") initUpload();
     if (s === "player") Player.init();
+    if (s === "home") {
+      window._currentArtState = "";
+      if (window.updateVisualArt) window.updateVisualArt();
+    }
   });
 
   sm.navigate("home");
@@ -47,10 +51,32 @@ function initDirection() {
       document.documentElement.dataset.dir = b.dataset.dir;
       localStorage.setItem("djk_dir", b.dataset.dir);
       apply();
+      if (window.updateVisualArt) window.updateVisualArt();
     };
   });
   apply();
 }
+
+window.updateVisualArt = function() {
+  const artDiv = document.querySelector(".home-visual-art.art-ph");
+  if (!artDiv) return;
+  
+  const isPlaying = typeof Player !== 'undefined' ? Player.state.isPlaying : false;
+  const dir = document.documentElement.dataset.dir; 
+  
+  const targetState = isPlaying ? (dir === "a" ? "vid_a" : "vid_b") : "img";
+  
+  if (window._currentArtState !== targetState) {
+    window._currentArtState = targetState;
+    if (targetState === "img") {
+      artDiv.innerHTML = `<img src="/img/djkalayci_logo.jpg" style="width:100%; height:100%; object-fit:cover;" />`;
+    } else if (targetState === "vid_a") {
+      artDiv.innerHTML = `<video src="/img/gunbatimi.mp4" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover; pointer-events:none;"></video>`;
+    } else {
+      artDiv.innerHTML = `<video src="/img/gece.mp4" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover; pointer-events:none;"></video>`;
+    }
+  }
+};
 
 function reflectDemoBadge(isDemo) {
   const badge = document.getElementById("demo-badge");
