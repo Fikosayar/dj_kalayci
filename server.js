@@ -22,7 +22,9 @@ function getConfig() {
         }
     }
     // Varsayılan klasör (Uygulamanın çalıştığı yerdeki 'uploads' klasörü)
-    return { uploadPath: path.join(process.cwd(), 'uploads') };
+    const defaultCfg = { uploadPath: path.join(process.cwd(), 'uploads') };
+    try { fs.writeFileSync(CONFIG_FILE, JSON.stringify(defaultCfg, null, 2), 'utf-8'); } catch(e){}
+    return defaultCfg;
 }
 
 function saveConfig(config) {
