@@ -232,7 +232,7 @@ const Player = (() => {
       return;
     }
     if (hasRealAudio()) {
-      audio.paused ? audio.play() : audio.pause();
+      audio.paused ? audio.play().catch(()=>{}) : audio.pause();
     } else {
       if (state.device !== "browser") API.pauseServer();
       state.isPlaying = !state.isPlaying;
@@ -281,7 +281,7 @@ const Player = (() => {
 
   function onEnded() {
     stopVirtual();
-    if (state.isLoop) { state.time = 0; if (hasRealAudio()) { audio.currentTime = 0; audio.play(); } else startVirtual(); }
+    if (state.isLoop) { state.time = 0; if (hasRealAudio()) { audio.currentTime = 0; audio.play().catch(()=>{}); } else startVirtual(); }
     else next();
   }
 
@@ -389,7 +389,7 @@ const Player = (() => {
         stopVirtual();
         audio.src = API.streamURL(state.current);
         audio.currentTime = state.time || 0;
-        if (wasPlaying) audio.play();
+        if (wasPlaying) audio.play().catch(()=>{});
       } else { // demo browser → virtual
         if (wasPlaying) startVirtual();
       }
