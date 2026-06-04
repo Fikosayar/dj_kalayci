@@ -13,7 +13,7 @@ RUN npm install
 # Geri kalan tüm kodları kopyala
 COPY . .
 
-EXPOSE 3005
+EXPOSE 8106
 
 # Uygulamayı başlat
 CMD ["npm", "start"]

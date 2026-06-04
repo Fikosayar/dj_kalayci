@@ -6,7 +6,7 @@ services:
     # Konteyner yeniden başlatıldığında otomatik kalksın
     restart: unless-stopped
     ports:
-      - "3005:3005"
+      - "8106:8106"
     # İŞTE KRİTİK NOKTA: Debian sunucunun ses kartını içeri aktarıyoruz
     devices:
       - "/dev/snd:/dev/snd"
