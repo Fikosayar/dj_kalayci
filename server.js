@@ -200,6 +200,26 @@ app.get('/api/devices', (req, res) => {
 
 const { spawn } = require('child_process');
 
+// Sunucu çalar durumu
+let serverPlayerState = {
+    isPlaying: false,
+    currentSec: 0,
+    totalSec: 0,
+    totalFrames: 0
+};
+
+// --- ANTİ-BUZZ (Cızlama Engelleyici) ---
+// Hoparlörün uyku moduna geçip cızlamasını engellemek için arka planda sürekli sessizlik çalınır
+try {
+    const silenceProcess = spawn('aplay', ['-D', 'default', '-c', '2', '-r', '44100', '-f', 'S16_LE', '/dev/zero']);
+    silenceProcess.stderr.on('data', d => {
+        const msg = d.toString();
+        if (!msg.includes('Playing raw data')) console.log('Anti-Buzz:', msg);
+    });
+} catch (e) {
+    console.error('Anti-Buzz başlatılamadı:', e);
+}
+
 app.post('/api/music/play-server', (req, res) => {
     const { filename } = req.body;
     if (!filename) return res.status(400).json({ error: 'Dosya adı gerekli' });
@@ -226,6 +246,29 @@ app.post('/api/music/play-server', (req, res) => {
         }
     });
 
+    // İlerleme Çubuğu İçin Standart Çıktıyı Dinleme
+    currentServerProcess.stdout.on('data', (data) => {
+        const lines = data.toString().split('\n');
+        lines.forEach(line => {
+            if (line.startsWith('@F ')) {
+                // @F <current_frame> <frames_left> <current_sec> <sec_left>
+                const parts = line.split(' ').filter(Boolean); // boşlukları temizle
+                if (parts.length >= 5) {
+                    const currentFrame = parseInt(parts[1]);
+                    const framesLeft = parseInt(parts[2]);
+                    serverPlayerState.currentSec = parseFloat(parts[3]);
+                    const secLeft = parseFloat(parts[4]);
+                    serverPlayerState.totalSec = serverPlayerState.currentSec + secLeft;
+                    serverPlayerState.totalFrames = currentFrame + framesLeft;
+                    serverPlayerState.isPlaying = true;
+                }
+            } else if (line.startsWith('@P 0') || line.startsWith('@P 3')) {
+                // Şarkı durdu veya bitti
+                serverPlayerState.isPlaying = false;
+            }
+        });
+    });
+
     // Müziği yükle ve çal komutu
     currentServerProcess.stdin.write(`L ${filePath}\n`);
     res.json({ success: true, message: 'Sunucuda çalınmaya başlandı.' });
@@ -237,6 +280,7 @@ app.post('/api/music/stop-server', (req, res) => {
         currentServerProcess.kill('SIGKILL');
         currentServerProcess = null;
     }
+    serverPlayerState.isPlaying = false;
     res.json({ success: true });
 });
 
@@ -252,6 +296,19 @@ app.post('/api/music/volume-server', (req, res) => {
     if (currentServerProcess && volume !== undefined) {
         const percent = Math.round(volume * 100);
         currentServerProcess.stdin.write(`V ${percent}\n`);
+    }
+    res.json({ success: true });
+});
+
+app.get('/api/music/status-server', (req, res) => {
+    res.json(serverPlayerState);
+});
+
+app.post('/api/music/seek-server', (req, res) => {
+    const { percent } = req.body;
+    if (currentServerProcess && percent !== undefined && serverPlayerState.totalFrames > 0) {
+        const targetFrame = Math.round((percent / 100) * serverPlayerState.totalFrames);
+        currentServerProcess.stdin.write(`J ${targetFrame}\n`);
     }
     res.json({ success: true });
 });

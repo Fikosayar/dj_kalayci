@@ -379,20 +379,50 @@ function bindAudioEvents() {
 
     let isProgressDragging = false;
     progressBarBg.addEventListener('mousedown', (e) => {
-        if (!audio.duration || playerState.outputDevice !== 'browser') return;
         isProgressDragging = true;
         const rect = progressBarBg.getBoundingClientRect();
-        audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+        let percent = (e.clientX - rect.left) / rect.width;
+        if (percent < 0) percent = 0; if (percent > 1) percent = 1;
+        
+        if (playerState.outputDevice === 'browser' && audio.duration) {
+            audio.currentTime = percent * audio.duration;
+        } else if (playerState.outputDevice === 'debian_alsa') {
+            fetch('/api/music/seek-server', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ percent: percent * 100 })
+            });
+            progressBarFill.style.width = `${percent * 100}%`;
+            progressBarHandle.style.left = `${percent * 100}%`;
+        }
     });
     window.addEventListener('mousemove', (e) => {
-        if (isProgressDragging && audio.duration && playerState.outputDevice === 'browser') {
+        if (isProgressDragging) {
             const rect = progressBarBg.getBoundingClientRect();
             let percent = (e.clientX - rect.left) / rect.width;
             if (percent < 0) percent = 0; if (percent > 1) percent = 1;
-            audio.currentTime = percent * audio.duration;
+            
+            if (playerState.outputDevice === 'browser' && audio.duration) {
+                audio.currentTime = percent * audio.duration;
+            } else if (playerState.outputDevice === 'debian_alsa') {
+                progressBarFill.style.width = `${percent * 100}%`;
+                progressBarHandle.style.left = `${percent * 100}%`;
+            }
         }
     });
-    window.addEventListener('mouseup', () => { isProgressDragging = false; });
+    window.addEventListener('mouseup', (e) => { 
+        if (isProgressDragging && playerState.outputDevice === 'debian_alsa') {
+            const rect = progressBarBg.getBoundingClientRect();
+            let percent = (e.clientX - rect.left) / rect.width;
+            if (percent < 0) percent = 0; if (percent > 1) percent = 1;
+            fetch('/api/music/seek-server', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ percent: percent * 100 })
+            });
+        }
+        isProgressDragging = false; 
+    });
     
     // YENİ: Ses Olayları (Volume Events)
     if (audio) {
@@ -561,11 +591,38 @@ function playMusic(filename) {
         playerState.isPlaying = true;
         playPauseIcon.innerText = 'pause';
         
-        progressBarBg.style.pointerEvents = 'none';
-        progressBarBg.style.opacity = '0.5';
-        timeCurrent.innerText = '--:--';
-        timeTotal.innerText = '--:--';
+        progressBarBg.style.pointerEvents = 'auto';
+        progressBarBg.style.opacity = '1';
+        timeCurrent.innerText = '00:00';
         progressBarFill.style.width = '0%';
         progressBarHandle.style.left = '0%';
+        
+        // Sunucu oynatma durumu takibi için anlık (1 saniyelik) polling sistemi başlatılıyor (Eğer yoksa)
+        if (!window.serverStatusInterval) {
+            window.serverStatusInterval = setInterval(() => {
+                if (playerState.outputDevice === 'debian_alsa') {
+                    fetch('/api/music/status-server').then(r => r.json()).then(data => {
+                        if (data.totalSec > 0 && !isProgressDragging) {
+                            timeCurrent.innerText = formatTime(data.currentSec);
+                            timeTotal.innerText = formatTime(data.totalSec);
+                            const percent = (data.currentSec / data.totalSec) * 100;
+                            if (progressBarFill) progressBarFill.style.width = `${percent}%`;
+                            if (progressBarHandle) progressBarHandle.style.left = `${percent}%`;
+                            
+                            // Sunucu çalmayı bitirdiyse sıradakine geç
+                            if (!data.isPlaying && playerState.isPlaying && data.currentSec >= data.totalSec * 0.98) {
+                                playerState.isPlaying = false;
+                                playPauseIcon.innerText = 'play_arrow';
+                                if (playerState.isLoop) {
+                                    playMusic(playerState.currentPlaying);
+                                } else {
+                                    playNext();
+                                }
+                            }
+                        }
+                    }).catch(e => {});
+                }
+            }, 1000);
+        }
     }
 }
