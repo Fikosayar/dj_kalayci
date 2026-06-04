@@ -210,9 +210,15 @@ app.post('/api/music/play-server', (req, res) => {
         currentServerProcess = null;
     }
 
-    // ALSA veya doğrudan sunucu üzerinden çalma (ffplay veya mplayer)
-    currentServerProcess = exec(`ffplay -nodisp -autoexit "${filePath}"`, (error) => {
-        if (error) console.error('Sunucuda çalma hatası (ffplay yüklü olmayabilir):', error.message);
+    // mpg123 ile sunucu üzerinden çalma (Sade ve güçlü mp3 çözücü)
+    currentServerProcess = exec(`mpg123 "${filePath}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error('Sunucuda çalma hatası (mpg123):', error.message);
+        }
+        if (stderr && !stderr.includes('High Performance MPEG 1.0/2.0/2.5 Audio Player')) {
+            // mpg123 başlangıç logu dışındaki gerçek hataları yazdır
+            console.error('Mpg123 Log/Hata:', stderr);
+        }
     });
 
     res.json({ success: true, message: 'Sunucuda çalınmaya başlandı.' });

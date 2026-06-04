@@ -212,11 +212,14 @@ let playerState = {
     isPlaying: false,
     isShuffle: false,
     isLoop: false,
-    outputDevice: 'browser' // Varsayılan cihaz
+    outputDevice: 'browser',
+    volume: 1,
+    isMuted: false
 };
 
 let audio, playPauseBtn, playPauseIcon, btnNext, btnPrev, btnShuffle, btnLoop;
 let progressBarBg, progressBarFill, progressBarHandle, timeCurrent, timeTotal;
+let btnMute, muteIcon, volumeBarBg, volumeBarFill, volumeBarHandle;
 let coverArtImg, defaultCoverIcon, trackNameEl;
 
 function initPlayerLogic() {
@@ -234,6 +237,13 @@ function initPlayerLogic() {
     timeCurrent = document.getElementById('time-current');
     timeTotal = document.getElementById('time-total');
     
+    // YENİ: Ses kontrolleri
+    btnMute = document.getElementById('btn-mute');
+    muteIcon = document.getElementById('mute-icon');
+    volumeBarBg = document.getElementById('volume-bar-bg');
+    volumeBarFill = document.getElementById('volume-bar-fill');
+    volumeBarHandle = document.getElementById('volume-bar-handle');
+
     coverArtImg = document.getElementById('cover-art-img');
     defaultCoverIcon = document.getElementById('default-cover-icon');
     trackNameEl = document.getElementById('current-track-name');
@@ -305,6 +315,20 @@ function formatTime(seconds) {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
+function updateVolumeUI() {
+    const effectiveVolume = playerState.isMuted ? 0 : playerState.volume;
+    const percent = effectiveVolume * 100;
+    
+    if (volumeBarFill) volumeBarFill.style.width = `${percent}%`;
+    if (volumeBarHandle) volumeBarHandle.style.left = `${percent}%`;
+    
+    if (muteIcon) {
+        if (effectiveVolume === 0) muteIcon.innerText = 'volume_off';
+        else if (effectiveVolume < 0.5) muteIcon.innerText = 'volume_down';
+        else muteIcon.innerText = 'volume_up';
+    }
+}
+
 function bindAudioEvents() {
     playPauseBtn.onclick = () => {
         if (!playerState.currentPlaying) return;
@@ -313,7 +337,6 @@ function bindAudioEvents() {
             if (audio.paused) audio.play();
             else audio.pause();
         } else {
-            // Sunucu modu için Stop/Play isteği
             if (playerState.isPlaying) {
                 fetch('/api/music/stop-server', { method: 'POST' });
                 playerState.isPlaying = false;
@@ -340,7 +363,7 @@ function bindAudioEvents() {
     };
 
     audio.ontimeupdate = () => {
-        if (playerState.outputDevice !== 'browser') return; // Sunucudan çalıyorsa progress bar'ı geçici devredışı bırakırız
+        if (playerState.outputDevice !== 'browser') return;
         
         timeCurrent.innerText = formatTime(audio.currentTime);
         if (audio.duration) {
@@ -358,6 +381,35 @@ function bindAudioEvents() {
         const percent = clickX / rect.width;
         audio.currentTime = percent * audio.duration;
     };
+    
+    // YENİ: Ses Olayları (Volume Events)
+    if (audio) {
+        audio.volume = playerState.volume;
+        updateVolumeUI();
+    }
+
+    if (volumeBarBg) {
+        volumeBarBg.onclick = (e) => {
+            const rect = volumeBarBg.getBoundingClientRect();
+            let percent = (e.clientX - rect.left) / rect.width;
+            if (percent < 0) percent = 0;
+            if (percent > 1) percent = 1;
+            
+            playerState.volume = percent;
+            if (playerState.volume > 0) playerState.isMuted = false;
+            
+            if (audio) audio.volume = playerState.volume;
+            updateVolumeUI();
+        };
+    }
+
+    if (btnMute) {
+        btnMute.onclick = () => {
+            playerState.isMuted = !playerState.isMuted;
+            if (audio) audio.volume = playerState.isMuted ? 0 : playerState.volume;
+            updateVolumeUI();
+        };
+    }
 
     audio.onended = () => {
         if (playerState.isLoop) {
@@ -427,7 +479,6 @@ function playMusic(filename) {
     
     trackNameEl.innerText = filename;
     
-    // Kapak Resmi Getirme
     fetch(`/api/music/cover/${encodeURIComponent(filename)}`)
         .then(res => {
             if (res.ok) return res.blob();
@@ -444,13 +495,11 @@ function playMusic(filename) {
             defaultCoverIcon.style.opacity = '1';
         });
 
-    // Cihaza Göre Oynatma Mantığı
     if (playerState.outputDevice === 'browser') {
-        fetch('/api/music/stop-server', { method: 'POST' }); // Sunucuyu durdur
+        fetch('/api/music/stop-server', { method: 'POST' }); 
         audio.src = `/api/music/play/${encodeURIComponent(filename)}`;
         audio.play().catch(e => console.error("Otomatik oynatma engellendi", e));
         
-        // Progress Bar'ı Aktifleştir
         progressBarBg.style.pointerEvents = 'auto';
         progressBarBg.style.opacity = '1';
     } else {
@@ -463,7 +512,6 @@ function playMusic(filename) {
         playerState.isPlaying = true;
         playPauseIcon.innerText = 'pause';
         
-        // Sunucu modunda tarayıcıdan progress takip edilemeyeceği için kapat
         progressBarBg.style.pointerEvents = 'none';
         progressBarBg.style.opacity = '0.5';
         timeCurrent.innerText = '--:--';
