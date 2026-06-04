@@ -19,7 +19,7 @@ function getConfig() {
         }
     }
     // Varsayılan klasör (Uygulamanın çalıştığı yerdeki 'uploads' klasörü)
-    return { uploadPath: path.join(process.cwd(), 'uploads') }; 
+    return { uploadPath: path.join(process.cwd(), 'uploads') };
 }
 
 function saveConfig(config) {
@@ -44,7 +44,7 @@ app.post('/api/settings/upload-path', (req, res) => {
     if (!uploadPath) {
         return res.status(400).json({ error: 'Yol (path) gereklidir.' });
     }
-    
+
     try {
         const stats = fs.statSync(uploadPath);
         if (!stats.isDirectory()) {
@@ -57,26 +57,26 @@ app.post('/api/settings/upload-path', (req, res) => {
     const config = getConfig();
     config.uploadPath = uploadPath;
     saveConfig(config);
-    
+
     res.json({ success: true, uploadPath: config.uploadPath });
 });
 
 app.get('/api/directories', (req, res) => {
-    let targetPath = req.query.path || process.cwd(); 
+    let targetPath = req.query.path || process.cwd();
 
     try {
         const absolutePath = path.resolve(targetPath);
-        
+
         fs.readdir(absolutePath, { withFileTypes: true }, (err, files) => {
             if (err) {
                 // Windows'taki sistem izin hatalarını tolere et (EPERM vb.)
                 return res.status(200).json({ currentPath: absolutePath, directories: [], error: 'Erişim reddedildi' });
             }
-            
+
             const directories = files
                 .filter(dirent => dirent.isDirectory())
                 .map(dirent => dirent.name);
-                
+
             res.json({ currentPath: absolutePath, directories: directories });
         });
     } catch (error) {
@@ -91,9 +91,12 @@ const storage = multer.diskStorage({
         cb(null, config.uploadPath);
     },
     filename: (req, file, cb) => {
-        // Dosya ismindeki Türkçe karakterleri ve boşlukları temizle/değiştir
-        const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-]/g, '_');
-        cb(null, Date.now() + '-' + safeName);
+        // Dosya ismini ve uzantısını ayır
+        const parsed = path.parse(file.originalname);
+        // İsimdeki geçersiz karakterleri temizle
+        const safeName = parsed.name.replace(/[^a-zA-Z0-9.\-]/g, '_');
+        // İsim - Timestamp . uzantı şeklinde birleştir
+        cb(null, safeName + '-' + Date.now() + parsed.ext);
     }
 });
 const upload = multer({ storage: storage });
@@ -109,10 +112,10 @@ app.post('/api/upload', upload.array('files'), (req, res) => {
 app.get('/api/music', (req, res) => {
     const config = getConfig();
     const uploadPath = config.uploadPath;
-    
+
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    
+
     try {
         if (!fs.existsSync(uploadPath)) {
             return res.json({ files: [], total: 0, totalPages: 0, current: page });
@@ -122,17 +125,17 @@ app.get('/api/music', (req, res) => {
             if (err) {
                 return res.status(500).json({ error: 'Klasör okunamadı' });
             }
-            
+
             // Sadece mp3 dosyalarını listele ve sondan başa (en yeni) sırala
             const musicFiles = files
                 .filter(f => f.toLowerCase().endsWith('.mp3') || f.toLowerCase().endsWith('.wav'))
                 .reverse();
-            
+
             const startIndex = (page - 1) * limit;
             const endIndex = page * limit;
-            
+
             const paginatedFiles = musicFiles.slice(startIndex, endIndex);
-            
+
             res.json({
                 files: paginatedFiles,
                 total: musicFiles.length,
@@ -149,7 +152,7 @@ app.get('/api/music', (req, res) => {
 app.get('/api/music/play/:filename', (req, res) => {
     const config = getConfig();
     const filePath = path.join(config.uploadPath, req.params.filename);
-    
+
     if (fs.existsSync(filePath)) {
         res.sendFile(filePath);
     } else {
@@ -161,7 +164,7 @@ app.get('/api/music/play/:filename', (req, res) => {
 app.get('/api/music/cover/:filename', async (req, res) => {
     const config = getConfig();
     const filePath = path.join(config.uploadPath, req.params.filename);
-    
+
     if (!fs.existsSync(filePath)) {
         return res.status(404).json({ error: 'Dosya bulunamadı' });
     }
@@ -181,7 +184,7 @@ app.get('/api/music/cover/:filename', async (req, res) => {
     }
 });
 
-const PORT = process.env.PORT || 3005;
+const PORT = process.env.PORT || 8106;
 
 app.use(express.static(path.join(__dirname, 'public')));
 
