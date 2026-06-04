@@ -13,9 +13,14 @@ services:
     # Ses grubuna (audio) dahil ediyoruz ki yetki sorunu yaşanmasın
     group_add:
       - audio
+    environment:
+      # Sesi doğrudan PulseAudio soketine yönlendiriyoruz
+      - PULSE_SERVER=unix:/run/pulse/native
     volumes:
       # Uploads klasörünü kalıcı yapıyoruz
       - dj_kalayci_uploads:/app/uploads
+      # Debian host'taki Pulse socketini Docker'a bağlıyoruz (Genellikle 1000 id'li kullanıcıda olur)
+      - /run/user/1000/pulse/native:/run/pulse/native
 
 volumes:
   dj_kalayci_uploads:

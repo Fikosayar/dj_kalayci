@@ -1,7 +1,7 @@
 FROM node:20-bullseye
 
-# Ses çalmak için gerekli paketleri (mpg123 ve alsa-utils) Linux'a kuruyoruz
-RUN apt-get update && apt-get install -y mpg123 alsa-utils && rm -rf /var/lib/apt/lists/*
+# Ses çalmak için gerekli paketleri (mpg123, alsa-utils ve pulseaudio) Linux'a kuruyoruz
+RUN apt-get update && apt-get install -y mpg123 alsa-utils pulseaudio && rm -rf /var/lib/apt/lists/*
 
 # Uygulama çalışma dizini
 WORKDIR /app
