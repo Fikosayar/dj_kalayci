@@ -426,14 +426,14 @@ function bindAudioEvents() {
     
     // YENİ: Ses Olayları (Volume Events)
     if (audio) {
-        audio.volume = playerState.volume;
+        audio.volume = Math.pow(playerState.volume, 3);
         updateVolumeUI();
         
         if (playerState.outputDevice === 'debian_alsa') {
             fetch('/api/music/volume-server', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ volume: playerState.volume })
+                body: JSON.stringify({ volume: Math.pow(playerState.volume, 3) })
             });
         }
     }
@@ -449,14 +449,15 @@ function bindAudioEvents() {
             playerState.volume = percent;
             if (playerState.volume > 0) playerState.isMuted = false;
             
-            if (audio) audio.volume = playerState.volume;
+            const expVol = Math.pow(playerState.volume, 3);
+            if (audio) audio.volume = expVol;
             updateVolumeUI();
             
             if (playerState.outputDevice === 'debian_alsa') {
                 fetch('/api/music/volume-server', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ volume: playerState.volume })
+                    body: JSON.stringify({ volume: expVol })
                 });
             }
         };
@@ -469,14 +470,15 @@ function bindAudioEvents() {
     if (btnMute) {
         btnMute.onclick = () => {
             playerState.isMuted = !playerState.isMuted;
-            if (audio) audio.volume = playerState.isMuted ? 0 : playerState.volume;
+            const expVol = playerState.isMuted ? 0 : Math.pow(playerState.volume, 3);
+            if (audio) audio.volume = expVol;
             updateVolumeUI();
             
             if (playerState.outputDevice === 'debian_alsa') {
                 fetch('/api/music/volume-server', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ volume: playerState.isMuted ? 0 : playerState.volume })
+                    body: JSON.stringify({ volume: expVol })
                 });
             }
         };
@@ -584,7 +586,7 @@ function playMusic(filename) {
             fetch('/api/music/volume-server', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ volume: playerState.volume })
+                body: JSON.stringify({ volume: Math.pow(playerState.volume, 3) })
             });
         });
 
