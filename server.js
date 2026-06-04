@@ -213,9 +213,9 @@ app.post('/api/music/play-server', (req, res) => {
     }
 
     // mpg123 ile sunucu üzerinden çalma (Sade ve güçlü mp3 çözücü)
-    // Artık Coolify Raw Compose ile /dev/snd donanımı gerçekten içeride.
-    // Herhangi bir zorlama yapmadan mpg123'ün en uygun sürücüyü (dmix/alsa) otomatik seçmesine izin veriyoruz.
-    currentServerProcess = exec(`mpg123 "${filePath}"`, (error, stdout, stderr) => {
+    // Otomatik seçimde JACK sürücüsüne gidip çöktüğü için (Segfault),
+    // ALSA'yı zorunlu kılıyoruz. Raw Compose aktif olduğu için dmix sorunsuz çalışacaktır.
+    currentServerProcess = exec(`mpg123 -o alsa "${filePath}"`, (error, stdout, stderr) => {
         if (error) {
             console.error('Sunucuda çalma hatası (mpg123):', error.message);
         }
