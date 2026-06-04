@@ -70,11 +70,11 @@ window.updateVisualArt = function() {
   if (window._currentArtState !== targetState) {
     window._currentArtState = targetState;
     if (targetState === "img") {
-      artDiv.innerHTML = `<img src="/img/djkalayci_logo.jpg" style="width:100%; height:100%; object-fit:cover;" />`;
+      artDiv.innerHTML = `<img src="/img/djkalayci_logo.jpg?v=1" style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover;" />`;
     } else if (targetState === "vid_a") {
-      artDiv.innerHTML = `<video src="/img/gunbatimi.mp4" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover; pointer-events:none;"></video>`;
+      artDiv.innerHTML = `<video src="/img/gunbatimi.mp4?v=1" autoplay loop muted playsinline style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; pointer-events:none;"></video>`;
     } else {
-      artDiv.innerHTML = `<video src="/img/gece.mp4" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover; pointer-events:none;"></video>`;
+      artDiv.innerHTML = `<video src="/img/gece.mp4?v=1" autoplay loop muted playsinline style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; pointer-events:none;"></video>`;
     }
   }
 };
