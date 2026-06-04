@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gelişmiş Ekran Yöneticisi</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Google Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar (Sol Menü) -->
+        <nav class="sidebar">
+            <div class="logo">
+                <span class="material-symbols-rounded">rocket_launch</span>
+                <h2>DJ Kalaycı</h2>
+            </div>
+
+            <ul class="nav-links">
+                <li data-target="home" class="active">
+                    <span class="material-symbols-rounded">home</span>
+                    Ana Sayfa
+                </li>
+                <li data-target="upload">
+                    <span class="material-symbols-rounded">upload_file</span>
+                    Dosya Yükle
+                </li>
+                <li data-target="analytics">
+                    <span class="material-symbols-rounded">bar_chart</span>
+                    İstatistikler
+                </li>
+            </ul>
+
+            <div class="sidebar-bottom">
+                <ul class="nav-links">
+                    <li data-target="settings">
+                        <span class="material-symbols-rounded">settings</span>
+                        Ayarlar
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Ana İçerik Alanı (Sağ Taraf) -->
+        <main class="main-content">
+            <div id="screen-container">
+                <!-- İçerikler ScreenManager tarafından buraya enjekte edilecek -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Şablonlar (Ekranların Yapısı) -->
+    <template id="screen-home">
+        <div class="screen fade-in">
+            <div class="header">
+                <h1>Ana Sayfa</h1>
+                <p>Sisteme hoş geldiniz. İstatistiklere hızlı bir bakış.</p>
+            </div>
+            <div class="cards-grid">
+                <div class="card glass-effect">
+                    <h3>Aktif Görevler</h3>
+                    <h2>12</h2>
+                </div>
+                <div class="card glass-effect">
+                    <h3>Sunucu Durumu</h3>
+                    <h2 class="text-success">Sağlıklı</h2>
+                </div>
+                <div class="card glass-effect">
+                    <h3>Disk Kullanımı</h3>
+                    <h2>%45</h2>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="screen-upload">
+        <div class="screen fade-in">
+            <div class="header">
+                <h1>Dosya Yükle</h1>
+                <p>Müzik veya video dosyalarınızı buraya sürükleyip bırakabilirsiniz.</p>
+            </div>
+            <div class="upload-area glass-effect">
+                <span class="material-symbols-rounded upload-icon">cloud_upload</span>
+                <h3>Dosyaları sürükleyip bırakın</h3>
+                <p>veya seçmek için tıklayın</p>
+                <button class="btn-primary">Dosya Seç</button>
+            </div>
+        </div>
+    </template>
+
+    <template id="screen-analytics">
+        <div class="screen fade-in">
+            <div class="header">
+                <h1>İstatistikler</h1>
+                <p>Kullanım verileri ve analizler.</p>
+            </div>
+            <div class="card glass-effect"
+                style="height: 300px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">
+                <p>Grafik arayüzü buraya eklenecektir...</p>
+            </div>
+        </div>
+    </template>
+
+    <template id="screen-settings">
+        <div class="screen fade-in">
+            <div class="header">
+                <h1>Ayarlar</h1>
+                <p>Sistem ve arayüz yapılandırma seçenekleri.</p>
+            </div>
+            <div class="settings-list">
+
+                <!-- Yükleme Lokasyonu Seçici (File Browser) -->
+                <div class="setting-item glass-effect"
+                    style="flex-direction: column; align-items: flex-start; gap: 16px;">
+                    <div class="setting-info">
+                        <h3>Yükleme Konumu (Upload Path)</h3>
+                        <p>Dosyaların sunucu üzerinde kaydedileceği dizini seçin.</p>
+                    </div>
+
+                    <div class="file-browser"
+                        style="width: 100%; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                        <div class="path-navigation" style="display: flex; gap: 8px; margin-bottom: 12px;">
+                            <button id="btn-up-dir" class="btn-primary"
+                                style="margin-top: 0; padding: 8px 12px; display: flex; align-items: center; gap: 4px;">
+                                <span class="material-symbols-rounded" style="font-size: 18px;">arrow_upward</span> Üst
+                                Klasör
+                            </button>
+                            <input type="text" id="current-path-input"
+                                style="flex: 1; padding: 8px 12px; border-radius: 4px; border: 1px solid var(--glass-border); background: var(--glass-bg); color: white; font-size: 14px;"
+                                readonly>
+                        </div>
+                        <div id="dir-list"
+                            style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 8px;">
+                            <!-- Klasörler API'den çekilip buraya eklenecek -->
+                        </div>
+                    </div>
+                    <button id="save-location-btn" class="btn-primary" style="margin-top: 0;">Bu Konumu Seç</button>
+                </div>
+
+                <div class="setting-item glass-effect">
+                    <div class="setting-info">
+                        <h3>Karanlık Mod</h3>
+                        <p>Arayüz temasını değiştirin</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <div class="setting-item glass-effect">
+                    <div class="setting-info">
+                        <h3>Ses Dönüştürme</h3>
+                        <p>Videoları otomatik mp3'e dönüştür</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <div class="setting-item glass-effect">
+                    <div class="setting-info">
+                        <h3>Bildirimler</h3>
+                        <p>Sistem uyarılarını göster</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script src="js/ScreenManager.js"></script>
+    <script src="js/main.js"></script>
+</body>
+
+</html>
