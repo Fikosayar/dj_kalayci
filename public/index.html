@@ -61,22 +61,22 @@
     
     <template id="screen-home">
         <div class="screen fade-in" style="display: flex; align-items: center; justify-content: center; height: 100%;">
-            <div class="glass-effect" style="display: flex; align-items: center; gap: 48px; padding: 48px; border-radius: 32px; max-width: 1000px; width: 100%; margin: 0 auto;">
+            <div class="glass-effect" style="display: flex; align-items: center; gap: 64px; padding: 64px; border-radius: 40px; max-width: 1250px; width: 100%; margin: 0 auto;">
                 <!-- Sol: Görsel -->
-                <div style="flex: 0 0 420px; height: 420px; border-radius: 24px; overflow: hidden; box-shadow: 0 24px 48px rgba(0,0,0,0.5); border: 1px solid var(--glass-border); position: relative;">
+                <div style="flex: 0 0 500px; height: 500px; border-radius: 32px; overflow: hidden; box-shadow: 0 32px 64px rgba(0,0,0,0.6); border: 1px solid var(--glass-border); position: relative;">
                     <div style="position: absolute; inset: 0; background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), transparent); z-index: 1;"></div>
                     <img src="img/djkalayci_logo.jpg" alt="DJ Kalayci" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 0;">
                 </div>
                 
                 <!-- Sağ: Metin -->
                 <div style="flex: 1;">
-                    <h1 style="font-size: 48px; margin-bottom: 24px; background: linear-gradient(135deg, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; line-height: 1.2;">DJ_Kalayci'ya Hoş Geldiniz</h1>
-                    <p style="color: var(--text-secondary); font-size: 18px; line-height: 1.7; margin-bottom: 40px;">
+                    <h1 style="font-size: 56px; margin-bottom: 24px; background: linear-gradient(135deg, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; line-height: 1.15; letter-spacing: -1px;">DJ_Kalayci'ya Hoş Geldiniz</h1>
+                    <p style="color: var(--text-secondary); font-size: 20px; line-height: 1.7; margin-bottom: 48px;">
                         Müziklerinizi güvenle sunucuya yükleyin, gelişmiş kalıcı depolama sistemiyle yönetin ve ALSA donanım gücünü kullanarak akıcı bir şekilde dinleyin.
                     </p>
                     <div>
-                        <button class="btn btn-primary" onclick="document.querySelector('li[data-target=\'player\']').click()" style="display: inline-flex; align-items: center; gap: 12px; padding: 16px 32px; font-size: 18px; font-weight: 600; border-radius: 16px;">
-                            Müziğe git <span class="material-symbols-rounded">arrow_forward</span>
+                        <button class="btn btn-primary" onclick="document.querySelector('li[data-target=\'player\']').click()" style="display: inline-flex; align-items: center; gap: 16px; padding: 20px 40px; font-size: 20px; font-weight: 600; border-radius: 20px;">
+                            Müziğe git <span class="material-symbols-rounded" style="font-size: 28px;">arrow_forward</span>
                         </button>
                     </div>
                 </div>
