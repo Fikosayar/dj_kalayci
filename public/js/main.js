@@ -341,7 +341,7 @@ function bindAudioEvents() {
             else audio.pause();
         } else {
             if (playerState.isPlaying) {
-                fetch('/api/music/stop-server', { method: 'POST' });
+                fetch('/api/music/pause-server', { method: 'POST' });
                 playerState.isPlaying = false;
                 playPauseIcon.innerText = 'play_arrow';
             } else {
@@ -398,6 +398,14 @@ function bindAudioEvents() {
     if (audio) {
         audio.volume = playerState.volume;
         updateVolumeUI();
+        
+        if (playerState.outputDevice === 'debian_alsa') {
+            fetch('/api/music/volume-server', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ volume: playerState.volume })
+            });
+        }
     }
 
     let isVolumeDragging = false;
@@ -413,6 +421,14 @@ function bindAudioEvents() {
             
             if (audio) audio.volume = playerState.volume;
             updateVolumeUI();
+            
+            if (playerState.outputDevice === 'debian_alsa') {
+                fetch('/api/music/volume-server', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ volume: playerState.volume })
+                });
+            }
         };
 
         volumeBarBg.addEventListener('mousedown', (e) => { isVolumeDragging = true; updateVolume(e); });
@@ -425,6 +441,14 @@ function bindAudioEvents() {
             playerState.isMuted = !playerState.isMuted;
             if (audio) audio.volume = playerState.isMuted ? 0 : playerState.volume;
             updateVolumeUI();
+            
+            if (playerState.outputDevice === 'debian_alsa') {
+                fetch('/api/music/volume-server', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ volume: playerState.isMuted ? 0 : playerState.volume })
+                });
+            }
         };
     }
 
@@ -521,11 +545,19 @@ function playMusic(filename) {
         progressBarBg.style.opacity = '1';
     } else {
         audio.pause();
+        // Müziği başlattığımızda ses seviyesini de hemen sunucuya bildiriyoruz
         fetch('/api/music/play-server', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ filename: filename })
+        }).then(() => {
+            fetch('/api/music/volume-server', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ volume: playerState.volume })
+            });
         });
+
         playerState.isPlaying = true;
         playPauseIcon.innerText = 'pause';
         

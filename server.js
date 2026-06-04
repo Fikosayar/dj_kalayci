@@ -198,6 +198,8 @@ app.get('/api/devices', (req, res) => {
     ]);
 });
 
+const { spawn } = require('child_process');
+
 app.post('/api/music/play-server', (req, res) => {
     const { filename } = req.body;
     if (!filename) return res.status(400).json({ error: 'Dosya adı gerekli' });
@@ -207,31 +209,49 @@ app.post('/api/music/play-server', (req, res) => {
 
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Dosya bulunamadı' });
 
+    // Eğer zaten mpg123 açıksa kapat
     if (currentServerProcess) {
+        try { currentServerProcess.stdin.write('Q\n'); } catch (e) {}
         currentServerProcess.kill('SIGKILL');
         currentServerProcess = null;
     }
 
-    // mpg123 ile sunucu üzerinden çalma (Sade ve güçlü mp3 çözücü)
-    // Otomatik seçimde JACK sürücüsüne gidip çöktüğü için (Segfault),
-    // ALSA'yı zorunlu kılıyoruz. Raw Compose aktif olduğu için dmix sorunsuz çalışacaktır.
-    currentServerProcess = exec(`mpg123 -o alsa "${filePath}"`, (error, stdout, stderr) => {
-        if (error) {
-            console.error('Sunucuda çalma hatası (mpg123):', error.message);
-        }
-        if (stderr && !stderr.includes('High Performance MPEG 1.0/2.0/2.5 Audio Player')) {
-            // mpg123 başlangıç logu dışındaki gerçek hataları yazdır
-            console.error('Mpg123 Log/Hata:', stderr);
+    // mpg123'ü "Remote Control" (-R) modunda başlatıyoruz ki komut gönderebilelim
+    currentServerProcess = spawn('mpg123', ['-R', '-o', 'alsa']);
+    
+    currentServerProcess.stderr.on('data', (data) => {
+        const err = data.toString();
+        if (!err.includes('High Performance')) {
+            console.error('Mpg123 Log:', err);
         }
     });
 
+    // Müziği yükle ve çal komutu
+    currentServerProcess.stdin.write(`L ${filePath}\n`);
     res.json({ success: true, message: 'Sunucuda çalınmaya başlandı.' });
 });
 
 app.post('/api/music/stop-server', (req, res) => {
     if (currentServerProcess) {
+        try { currentServerProcess.stdin.write('Q\n'); } catch (e) {}
         currentServerProcess.kill('SIGKILL');
         currentServerProcess = null;
+    }
+    res.json({ success: true });
+});
+
+app.post('/api/music/pause-server', (req, res) => {
+    if (currentServerProcess) {
+        currentServerProcess.stdin.write('P\n'); // Pause toggle
+    }
+    res.json({ success: true });
+});
+
+app.post('/api/music/volume-server', (req, res) => {
+    const { volume } = req.body; // 0.0 ile 1.0 arası gelir
+    if (currentServerProcess && volume !== undefined) {
+        const percent = Math.round(volume * 100);
+        currentServerProcess.stdin.write(`V ${percent}\n`);
     }
     res.json({ success: true });
 });
