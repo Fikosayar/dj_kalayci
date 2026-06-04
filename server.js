@@ -213,8 +213,8 @@ app.post('/api/music/play-server', (req, res) => {
     }
 
     // mpg123 ile sunucu üzerinden çalma (Sade ve güçlü mp3 çözücü)
-    // -o pulse ekleyerek çıkışı doğrudan PulseAudio üzerinden vermeye zorluyoruz
-    currentServerProcess = exec(`mpg123 -o pulse "${filePath}"`, (error, stdout, stderr) => {
+    // -o alsa ile direkt donanım sürücüsüne gönderiyoruz
+    currentServerProcess = exec(`mpg123 -o alsa "${filePath}"`, (error, stdout, stderr) => {
         if (error) {
             console.error('Sunucuda çalma hatası (mpg123):', error.message);
         }
