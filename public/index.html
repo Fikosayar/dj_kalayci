@@ -238,7 +238,8 @@
               <span class="material-symbols-rounded">info</span>
               <p><strong>Coolify Volumes:</strong> Seçtiğiniz konumun, Coolify panelindeki “Storages” sekmesindeki
                 <strong>Destination Path</strong> (örn: /app/uploads) ile birebir aynı olduğundan emin olun. Aksi halde
-                verileriniz korunmaz.</p>
+                verileriniz korunmaz.
+              </p>
             </div>
             <details>
               <summary><span class="material-symbols-rounded" style="font-size:18px">code</span>Docker Compose örneği
@@ -268,17 +269,19 @@ volumes:
   </template>
 
   <template id="screen-party">
-    <div class="screen fade-in" style="position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999; background:transparent; display:flex; align-items:flex-end; justify-content:flex-start; padding: 40px; box-sizing:border-box; max-width:100%; margin:0; overflow:hidden;">
-      
+    <div class="screen fade-in"
+      style="position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999; background:transparent; display:flex; align-items:flex-end; justify-content:flex-start; padding: 40px; box-sizing:border-box; max-width:100%; margin:0; overflow:hidden;">
+
       <!-- Video Arkaplan -->
-      <video src="/img/parti.mp4" autoplay loop muted playsinline style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; z-index:-1; pointer-events:none;"></video>
+      <video src="/img/parti.mp4" autoplay loop muted playsinline
+        style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; z-index:-1; pointer-events:none;"></video>
 
       <!-- Kapatma Tuşu -->
-      <button onclick="document.querySelector('.nav-links li[data-target=\'home\']').click()" style="position:absolute; top:30px; right:40px; background:transparent; border:none; color:var(--ink-soft); cursor:pointer; padding:10px; border-radius:50%; transition:all 0.2s;" onmouseover="this.style.color='#fff'; this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.color='var(--ink-soft)'; this.style.background='transparent'"><span class="material-symbols-rounded" style="font-size:36px;">close</span></button>
+      <button onclick="document.querySelector('.nav-links li[data-target=\'home\']').click()" style="position:absolute; top:30px; right:40px; background:rgba(255,255,255,0.1); border:none; color:var(--ink-soft); cursor:pointer; padding:10px; border-radius:50%; transition:all 0.2s;" onmouseover="this.style.color='#fff'; this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.color='var(--ink-soft)'; this.style.background='rgba(255,255,255,0.1)'"><span class="material-symbols-rounded" style="font-size:36px;">close</span></button>
 
       <!-- Player (Kapaksız) -->
-      <div class="card player-main" style="width: 500px; padding: 25px; margin: 0; display:block; background: #ffffffb0; box-shadow: none; position: relative;">
-        <button onclick="document.querySelector('.nav-links li[data-target=\'home\']').click()" style="position:absolute; top:10px; left:10px; background:transparent; border:none; color:var(--ink-soft); cursor:pointer; padding:5px; border-radius:50%; transition:all 0.2s; z-index:10;" onmouseover="this.style.color='#000'; this.style.background='rgba(0,0,0,0.1)'" onmouseout="this.style.color='var(--ink-soft)'; this.style.background='transparent'"><span class="material-symbols-rounded" style="font-size:24px;">close</span></button>
+      <div class="card player-main"
+        style="width: 500px; padding: 25px; margin: 0; display:block; background: #ffffffb0; box-shadow: none; position: relative;">
 
         <!-- Gizli Kuklalar (Player.js çökmesin diye) -->
         <div style="display:none">
@@ -302,16 +305,21 @@ volumes:
         </div>
 
         <div style="display:flex; align-items:center; justify-content:space-between;">
-          <div class="controls" style="margin:0; background:transparent; border:none; padding:0; justify-content:flex-start; gap:12px;">
-            <button id="btn-shuffle" class="ctrl" title="Karışık"><span class="material-symbols-rounded">shuffle</span></button>
+          <div class="controls"
+            style="margin:0; background:transparent; border:none; padding:0; justify-content:flex-start; gap:12px;">
+            <button id="btn-shuffle" class="ctrl" title="Karışık"><span
+                class="material-symbols-rounded">shuffle</span></button>
             <button id="btn-prev" class="ctrl"><span class="material-symbols-rounded">skip_previous</span></button>
-            <button id="btn-play" class="play-btn" style="width:46px; height:46px;"><span id="play-icon" class="material-symbols-rounded">play_arrow</span></button>
+            <button id="btn-play" class="play-btn" style="width:46px; height:46px;"><span id="play-icon"
+                class="material-symbols-rounded">play_arrow</span></button>
             <button id="btn-next" class="ctrl"><span class="material-symbols-rounded">skip_next</span></button>
-            <button id="btn-loop" class="ctrl" title="Döngü"><span class="material-symbols-rounded">repeat</span></button>
+            <button id="btn-loop" class="ctrl" title="Döngü"><span
+                class="material-symbols-rounded">repeat</span></button>
           </div>
 
           <div class="volume" style="margin-left: 20px;">
-            <button id="btn-mute" class="btn-mute"><span id="mute-icon" class="material-symbols-rounded">volume_up</span></button>
+            <button id="btn-mute" class="btn-mute"><span id="mute-icon"
+                class="material-symbols-rounded">volume_up</span></button>
             <div id="vbar" class="vbar">
               <div id="vbar-fill" class="vbar-fill"></div>
               <div id="vbar-handle" class="vbar-handle"></div>
