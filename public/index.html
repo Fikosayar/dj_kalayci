@@ -268,8 +268,11 @@ volumes:
   </template>
 
   <template id="screen-party">
-    <div class="screen fade-in" style="position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999; background:transparent; display:flex; align-items:flex-end; justify-content:flex-start; padding: 40px; box-sizing:border-box; max-width:100%; margin:0;">
+    <div class="screen fade-in" style="position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999; background:transparent; display:flex; align-items:flex-end; justify-content:flex-start; padding: 40px; box-sizing:border-box; max-width:100%; margin:0; overflow:hidden;">
       
+      <!-- Video Arkaplan -->
+      <video src="/img/parti.mp4" autoplay loop muted playsinline style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; z-index:-1; pointer-events:none;"></video>
+
       <!-- Kapatma Tuşu -->
       <button onclick="document.querySelector('.nav-links li[data-target=\'home\']').click()" style="position:absolute; top:30px; right:40px; background:transparent; border:none; color:var(--ink-soft); cursor:pointer; padding:10px; border-radius:50%; transition:all 0.2s;" onmouseover="this.style.color='#fff'; this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.color='var(--ink-soft)'; this.style.background='transparent'"><span class="material-symbols-rounded" style="font-size:36px;">close</span></button>
 
