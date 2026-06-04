@@ -139,6 +139,7 @@ services:
     group_add:
       - audio
     privileged: true
+    ipc: host
     volumes:
       - 'dj_kalayci_uploads:/app/uploads'
 volumes:
