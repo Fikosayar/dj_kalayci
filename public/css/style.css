@@ -704,3 +704,38 @@ select option { background: var(--surface); color: var(--ink); }
 @media (prefers-reduced-motion: reduce) {
   .fade-in, .home-visual-bars i, .np-mini .eq i, .track-row.playing .play-ind i { animation: none !important; }
 }
+
+/* ===================== MOBILE RESPONSIVE ===================== */
+@media (max-width: 768px) {
+  .app-container { flex-direction: column; }
+  .sidebar { 
+    width: 100%; max-width: none; min-width: 0; height: auto; 
+    border-right: none; border-bottom: 1px solid var(--line); 
+    padding: 15px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px;
+  }
+  .sidebar .brand { margin-bottom: 5px; }
+  .sidebar .nav-label { display: none; }
+  .sidebar .nav-links { display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px; margin: 0; }
+  .sidebar .nav-links li { margin-bottom: 0; flex: 1 1 auto; justify-content: center; padding: 8px; font-size: 13px; min-width: 100px; }
+  .sidebar .nav-links li span { font-size: 18px; margin-right: 6px; }
+  
+  .sidebar-bottom { margin-top: 0; border-top: none; padding-top: 0; }
+  .sidebar-bottom .np-mini { display: none; } /* Hide mini player on mobile to save vertical space */
+  
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .content { padding: 15px; overflow-y: auto; }
+  .topbar { padding: 15px; flex-wrap: wrap; gap: 10px; height: auto; }
+  
+  .home { display: flex; flex-direction: column; gap: 20px; }
+  .home-visual { max-width: 100%; width: 100%; }
+  
+  .player { display: flex; flex-direction: column; }
+  .player-main { width: 100%; max-width: none; min-width: 0; border-right: none; border-bottom: 1px solid var(--line); }
+  .player-list { width: 100%; flex: 1; }
+  
+  .screen-party .player-main { width: 100% !important; max-width: 100% !important; }
+  .screen-party .screen.fade-in { padding: 20px !important; }
+  
+  .card { padding: 20px; }
+  .up-drop { padding: 20px 10px; }
+}
