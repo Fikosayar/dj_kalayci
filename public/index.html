@@ -140,6 +140,8 @@ services:
       - audio
     privileged: true
     ipc: host
+    environment:
+      - ALSA_CARD=0
     volumes:
       - 'dj_kalayci_uploads:/app/uploads'
 volumes:

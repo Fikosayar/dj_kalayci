@@ -214,8 +214,8 @@ app.post('/api/music/play-server', (req, res) => {
 
     // mpg123 ile sunucu üzerinden çalma (Sade ve güçlü mp3 çözücü)
     // dmix (yazılımsal karıştırıcı) hatalarını (unable to open slave) aşmak için 
-    // doğrudan donanıma (plughw:0,0) bağlanıyoruz.
-    currentServerProcess = exec(`mpg123 -o alsa -a plughw:0,0 "${filePath}"`, (error, stdout, stderr) => {
+    // doğrudan donanıma (hw:0,0) bağlanıyoruz.
+    currentServerProcess = exec(`mpg123 -o alsa -a hw:0,0 "${filePath}"`, (error, stdout, stderr) => {
         if (error) {
             console.error('Sunucuda çalma hatası (mpg123):', error.message);
         }

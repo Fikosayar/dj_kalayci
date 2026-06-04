@@ -17,6 +17,8 @@ services:
     privileged: true
     # ALSA dmix (ses karıştırıcı) eklentisinin çalışabilmesi için host'un bellek alanını (IPC) kullan
     ipc: host
+    environment:
+      - ALSA_CARD=0
     volumes:
       # Uploads klasörünü kalıcı yapıyoruz
       - dj_kalayci_uploads:/app/uploads
