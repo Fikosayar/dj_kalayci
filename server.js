@@ -212,6 +212,10 @@ let serverPlayerState = {
 // Hoparlörün uyku moduna geçip cızlamasını engellemek için arka planda sürekli sessizlik çalınır
 try {
     const silenceProcess = spawn('aplay', ['-D', 'default', '-c', '2', '-r', '44100', '-f', 'S16_LE', '/dev/zero']);
+    silenceProcess.on('error', (err) => {
+        // Windows gibi aplay olmayan ortamlarda çökmeyi engelle
+        console.log('Anti-Buzz uyarı: aplay bulunamadı (Windows ortamı olabilir)');
+    });
     silenceProcess.stderr.on('data', d => {
         const msg = d.toString();
         if (!msg.includes('Playing raw data')) console.log('Anti-Buzz:', msg);
