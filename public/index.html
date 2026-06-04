@@ -60,13 +60,29 @@
     <!-- SCREENS (Templates) -->
     
     <template id="screen-home">
-        <div class="screen fade-in">
-            <div class="glass-effect" style="padding: 40px; border-radius: 24px; text-align: center; max-width: 600px; margin: 0 auto; margin-top: 10vh;">
-                <span class="material-symbols-rounded" style="font-size: 64px; color: var(--accent-color); margin-bottom: 24px;">waving_hand</span>
-                <h1 style="font-size: 32px; margin-bottom: 16px;">DJ_Kalayci'ya Hoş Geldiniz</h1>
-                <p style="color: var(--text-secondary); font-size: 16px; line-height: 1.6;">
-                    Müziklerinizi kolayca yükleyin, yönetin ve akıcı bir şekilde dinleyin. Başlamak için sol menüyü kullanabilirsiniz.
-                </p>
+        <div class="screen fade-in" style="display: flex; align-items: center; justify-content: center; height: 100%;">
+            <div class="glass-effect" style="display: flex; align-items: center; gap: 40px; padding: 40px; border-radius: 32px; max-width: 850px; width: 100%; margin: 0 auto;">
+                <!-- Sol: Görsel -->
+                <div style="flex: 0 0 320px; height: 320px; border-radius: 24px; overflow: hidden; box-shadow: 0 16px 32px rgba(0,0,0,0.4); border: 1px solid var(--glass-border); position: relative;">
+                    <div style="position: absolute; inset: 0; background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), transparent); z-index: 1;"></div>
+                    <img src="img/djkalayci_logo.jpg" alt="DJ Kalayci" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 0;">
+                </div>
+                
+                <!-- Sağ: Metin -->
+                <div style="flex: 1;">
+                    <h1 style="font-size: 40px; margin-bottom: 16px; background: linear-gradient(135deg, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; line-height: 1.2;">DJ_Kalayci'ya Hoş Geldiniz</h1>
+                    <p style="color: var(--text-secondary); font-size: 16px; line-height: 1.7; margin-bottom: 32px;">
+                        Müziklerinizi güvenle sunucuya yükleyin, gelişmiş kalıcı depolama sistemiyle yönetin ve ALSA donanım gücünü kullanarak akıcı bir şekilde dinleyin.
+                    </p>
+                    <div style="display: flex; gap: 16px;">
+                        <button class="btn btn-primary" onclick="document.querySelector('li[data-target=\'upload\']').click()" style="display: flex; align-items: center; gap: 8px; padding: 12px 24px;">
+                            <span class="material-symbols-rounded">cloud_upload</span> Hemen Yükle
+                        </button>
+                        <button class="btn btn-secondary" onclick="document.querySelector('li[data-target=\'player\']').click()" style="display: flex; align-items: center; gap: 8px; padding: 12px 24px;">
+                            <span class="material-symbols-rounded">play_circle</span> Oynatıcı
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </template>

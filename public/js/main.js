@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const screenManager = new ScreenManager('main-content');
-    screenManager.navigate('player');
+    screenManager.navigate('home');
 
     const navItems = document.querySelectorAll('.nav-links li[data-target]');
     navItems.forEach(item => {
