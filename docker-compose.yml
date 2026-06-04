@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  dj_kalayci_app:
+    build: .
+    # Konteyner yeniden başlatıldığında otomatik kalksın
+    restart: unless-stopped
+    ports:
+      - "3005:3005"
+    # İŞTE KRİTİK NOKTA: Debian sunucunun ses kartını içeri aktarıyoruz
+    devices:
+      - "/dev/snd:/dev/snd"
+    volumes:
+      # Uploads klasörünü kalıcı yapıyoruz
+      - dj_kalayci_uploads:/app/uploads
+      # Config dosyasını kalıcı yapıyoruz (isteğe bağlı)
+      - dj_kalayci_config:/app/config.json
+
+volumes:
+  dj_kalayci_uploads:
+  dj_kalayci_config:

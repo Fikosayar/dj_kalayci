@@ -1,0 +1,19 @@
+FROM node:20-bullseye
+
+# Ses çalmak için gerekli paketleri (mpg123 ve alsa-utils) Linux'a kuruyoruz
+RUN apt-get update && apt-get install -y mpg123 alsa-utils && rm -rf /var/lib/apt/lists/*
+
+# Uygulama çalışma dizini
+WORKDIR /app
+
+# Sadece package.json'u kopyalayıp npm install yapıyoruz (Docker önbelleği için iyi bir pratik)
+COPY package*.json ./
+RUN npm install
+
+# Geri kalan tüm kodları kopyala
+COPY . .
+
+EXPOSE 3005
+
+# Uygulamayı başlat
+CMD ["npm", "start"]
