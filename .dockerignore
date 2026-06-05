@@ -5,3 +5,4 @@ uploads
 .dockerignore
 Dockerfile
 config.json
+.chunks_tmp

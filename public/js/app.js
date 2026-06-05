@@ -254,35 +254,51 @@ function initUpload() {
       if (st2) { st2.textContent = `${us.completed} / ${us.total} dosya yüklendi…`; }
     }
 
-    function uploadOne(file, index) {
-      return new Promise((resolve) => {
-        const fd = new FormData();
-        fd.append("files", file);
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", "/api/upload", true);
-        xhr.upload.onprogress = (e) => {
-          if (!e.lengthComputable) return;
-          us.progresses[index] = (e.loaded / e.total) * 100;
-          updateOverall();
-        };
-        xhr.onload = () => {
-          us.progresses[index] = 100;
-          us.completed++;
-          if (xhr.status === 413) {
-            // Dosya boyutu Traefik/proxy limiti aştı
+    async function uploadOne(file, index) {
+      const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB — proxy limitinin çok altında
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+      const fileId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+      try {
+        for (let ci = 0; ci < totalChunks; ci++) {
+          const start = ci * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, file.size);
+          const chunk = file.slice(start, end);
+
+          const res = await fetch('/api/upload/chunk', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/octet-stream',
+              'X-Chunk-Index': ci,
+              'X-Total-Chunks': totalChunks,
+              'X-Filename': encodeURIComponent(file.name),
+              'X-File-Id': fileId
+            },
+            body: chunk
+          });
+
+          if (!res.ok) {
+            const errText = await res.text().catch(() => '');
+            us.completed++;
             updateOverall();
-            resolve({ ok: false, name: file.name, reason: '413' });
-          } else {
-            updateOverall();
-            resolve({ ok: xhr.status === 200, name: file.name });
+            return { ok: false, name: file.name, reason: res.status === 413 ? '413' : 'err' };
           }
-        };
-        xhr.onerror = () => {
-          us.completed++;
-          resolve({ ok: false, name: file.name });
-        };
-        xhr.send(fd);
-      });
+
+          // İlerlemeyi güncelle (parça bazlı)
+          us.progresses[index] = ((ci + 1) / totalChunks) * 100;
+          updateOverall();
+        }
+
+        us.completed++;
+        us.progresses[index] = 100;
+        updateOverall();
+        return { ok: true, name: file.name };
+
+      } catch (err) {
+        us.completed++;
+        updateOverall();
+        return { ok: false, name: file.name };
+      }
     }
 
     const CONCURRENCY = 3;

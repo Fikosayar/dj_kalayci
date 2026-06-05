@@ -125,6 +125,71 @@ app.post('/api/upload', upload.array('files'), (req, res) => {
     res.json({ success: true, message: `${req.files.length} dosya başarıyla yüklendi.` });
 });
 
+// --- PARÇALI (CHUNKED) YÜKLEME ENDPOINT'İ ---
+// Büyük dosyalar için 4MB'lık parçalar halinde yükleme
+const CHUNK_TMP_DIR = path.join(process.cwd(), '.chunks_tmp');
+if (!fs.existsSync(CHUNK_TMP_DIR)) fs.mkdirSync(CHUNK_TMP_DIR, { recursive: true });
+
+app.post('/api/upload/chunk', (req, res) => {
+    const chunkIndex  = parseInt(req.headers['x-chunk-index']  || '0');
+    const totalChunks = parseInt(req.headers['x-total-chunks'] || '1');
+    const fileId      = req.headers['x-file-id'] || Date.now().toString();
+    const originalName = req.headers['x-filename']
+        ? decodeURIComponent(req.headers['x-filename'])
+        : 'upload.mp3';
+
+    const fileDir = path.join(CHUNK_TMP_DIR, fileId);
+    if (!fs.existsSync(fileDir)) fs.mkdirSync(fileDir, { recursive: true });
+
+    const chunkPath = path.join(fileDir, `chunk_${String(chunkIndex).padStart(6, '0')}`);
+    const ws = fs.createWriteStream(chunkPath);
+
+    req.pipe(ws);
+
+    ws.on('finish', () => {
+        const received = fs.readdirSync(fileDir).filter(f => f.startsWith('chunk_')).length;
+
+        if (received < totalChunks) {
+            // Henüz tüm parçalar gelmedi
+            return res.json({ success: true, done: false, received, total: totalChunks });
+        }
+
+        // Tüm parçalar geldi — birleştir
+        const config = getConfig();
+        const parsed  = path.parse(originalName);
+        const safeName = parsed.name.replace(/[^a-zA-Z0-9.\-]/g, '_');
+        const finalName = safeName + '-' + Date.now() + parsed.ext;
+        const finalPath = path.join(config.uploadPath, finalName);
+
+        const out = fs.createWriteStream(finalPath);
+        const chunks = fs.readdirSync(fileDir)
+            .filter(f => f.startsWith('chunk_'))
+            .sort(); // padStart sayesinde alfabetik = sıralı
+
+        (function writeNext(i) {
+            if (i >= chunks.length) { out.end(); return; }
+            const data = fs.readFileSync(path.join(fileDir, chunks[i]));
+            out.write(data, () => writeNext(i + 1));
+        })(0);
+
+        out.on('finish', () => {
+            // Geçici parça klasörünü temizle
+            try { fs.rmSync(fileDir, { recursive: true, force: true }); } catch(e) {}
+            res.json({ success: true, done: true, filename: finalName });
+        });
+
+        out.on('error', (err) => {
+            console.error('Birleştirme hatası:', err);
+            res.status(500).json({ error: 'Dosya birleştirilemedi' });
+        });
+    });
+
+    ws.on('error', (err) => {
+        console.error('Chunk yazma hatası:', err);
+        res.status(500).json({ error: 'Chunk yazılamadı' });
+    });
+});
+
 // Müzikleri listeleme API'si (Pagination destekli)
 app.get('/api/music', (req, res) => {
     const config = getConfig();

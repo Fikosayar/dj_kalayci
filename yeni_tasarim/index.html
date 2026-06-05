@@ -1,15 +1,21 @@
 <!DOCTYPE html>
 <html lang="tr" data-dir="a">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DJ_Kalayci</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500;1,6..72,600&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500;1,6..72,600&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
 
   <div class="app-container">
@@ -53,7 +59,9 @@
       <header class="topbar">
         <div id="topbar-title" class="topbar-title">Ana Sayfa</div>
         <div class="topbar-right">
-          <span id="demo-badge" class="device-pill" style="display:none; cursor:default; font-family:var(--font-mono); font-size:11px; letter-spacing:.1em;">DEMO MODU</span>
+          <span id="demo-badge" class="device-pill"
+            style="display:none; cursor:default; font-family:var(--font-mono); font-size:11px; letter-spacing:.1em;">DEMO
+            MODU</span>
           <button id="device-pill" class="device-pill">
             <span class="material-symbols-rounded">speaker</span>
             <span class="dp-name">Tarayıcı</span>
@@ -76,10 +84,13 @@
         <div>
           <div class="home-eyebrow">Kişisel müzik sunucusu</div>
           <h1>Müziğin, <em>kendi sunucunda</em> akar.</h1>
-          <p>Parçalarını yükle, kalıcı depolamada güvenle sakla; ister bu cihazdan ister sunucunun donanım hoparlöründen, akıcı bir şekilde dinle.</p>
+          <p>Parçalarını yükle, kalıcı depolamada güvenle sakla; ister bu cihazdan ister sunucunun donanım
+            hoparlöründen, akıcı bir şekilde dinle.</p>
           <div class="home-cta">
-            <button class="btn btn-primary" data-go="player"><span class="material-symbols-rounded">play_arrow</span>Oynatıcıya git</button>
-            <button class="btn" data-go="upload"><span class="material-symbols-rounded">cloud_upload</span>Müzik yükle</button>
+            <button class="btn btn-primary" data-go="player"><span
+                class="material-symbols-rounded">play_arrow</span>Oynatıcıya git</button>
+            <button class="btn" data-go="upload"><span class="material-symbols-rounded">cloud_upload</span>Müzik
+              yükle</button>
           </div>
           <div class="home-stats">
             <div style="display:flex; align-items:center; gap:10px;">
@@ -125,7 +136,9 @@
             <span id="upload-status">Yükleniyor…</span>
             <span id="upload-pct" class="pct">0%</span>
           </div>
-          <div class="progress-track"><div id="upload-bar" class="progress-fill"></div></div>
+          <div class="progress-track">
+            <div id="upload-bar" class="progress-fill"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -152,16 +165,23 @@
           </div>
 
           <div class="controls">
-            <button id="btn-shuffle" class="ctrl" title="Karışık"><span class="material-symbols-rounded">shuffle</span></button>
+            <button id="btn-shuffle" class="ctrl" title="Karışık"><span
+                class="material-symbols-rounded">shuffle</span></button>
             <button id="btn-prev" class="ctrl lg"><span class="material-symbols-rounded">skip_previous</span></button>
-            <button id="btn-play" class="play-btn"><span id="play-icon" class="material-symbols-rounded">play_arrow</span></button>
+            <button id="btn-play" class="play-btn"><span id="play-icon"
+                class="material-symbols-rounded">play_arrow</span></button>
             <button id="btn-next" class="ctrl lg"><span class="material-symbols-rounded">skip_next</span></button>
-            <button id="btn-loop" class="ctrl" title="Döngü"><span class="material-symbols-rounded">repeat</span></button>
+            <button id="btn-loop" class="ctrl" title="Döngü"><span
+                class="material-symbols-rounded">repeat</span></button>
           </div>
 
           <div class="volume">
-            <button id="btn-mute" class="btn-mute"><span id="mute-icon" class="material-symbols-rounded">volume_up</span></button>
-            <div id="vbar" class="vbar"><div id="vbar-fill" class="vbar-fill"></div><div id="vbar-handle" class="vbar-handle"></div></div>
+            <button id="btn-mute" class="btn-mute"><span id="mute-icon"
+                class="material-symbols-rounded">volume_up</span></button>
+            <div id="vbar" class="vbar">
+              <div id="vbar-fill" class="vbar-fill"></div>
+              <div id="vbar-handle" class="vbar-handle"></div>
+            </div>
           </div>
         </section>
 
@@ -208,7 +228,8 @@
           <div class="filebox">
             <div class="filebox-head">
               <span>Dosya Yöneticisi</span>
-              <button id="btn-up-dir" class="btn" style="padding:6px 12px; font-size:12px"><span class="material-symbols-rounded" style="font-size:16px">arrow_upward</span>Üst klasör</button>
+              <button id="btn-up-dir" class="btn" style="padding:6px 12px; font-size:12px"><span
+                  class="material-symbols-rounded" style="font-size:16px">arrow_upward</span>Üst klasör</button>
             </div>
             <div id="dir-list" class="dir-list"></div>
           </div>
@@ -216,10 +237,13 @@
           <div class="note">
             <div class="note-row">
               <span class="material-symbols-rounded">info</span>
-              <p><strong>Coolify Volumes:</strong> Seçtiğiniz konumun, Coolify panelindeki “Storages” sekmesindeki <strong>Destination Path</strong> (örn: /app/uploads) ile birebir aynı olduğundan emin olun. Aksi halde verileriniz korunmaz.</p>
+              <p><strong>Coolify Volumes:</strong> Seçtiğiniz konumun, Coolify panelindeki “Storages” sekmesindeki
+                <strong>Destination Path</strong> (örn: /app/uploads) ile birebir aynı olduğundan emin olun. Aksi halde
+                verileriniz korunmaz.</p>
             </div>
             <details>
-              <summary><span class="material-symbols-rounded" style="font-size:18px">code</span>Docker Compose örneği</summary>
+              <summary><span class="material-symbols-rounded" style="font-size:18px">code</span>Docker Compose örneği
+              </summary>
               <pre>services:
   dj_kalayci_app:
     build: .
@@ -281,4 +305,5 @@ volumes:
     });
   </script>
 </body>
+
 </html>
