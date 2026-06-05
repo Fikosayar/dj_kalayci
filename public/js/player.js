@@ -90,18 +90,6 @@ const Player = (() => {
     };
     audio = el.audio;
 
-    // Audio her yeni kaynak yüklemeye başladığında volume'u garantile
-    if (audio) {
-      audio.onloadstart = () => {
-        const v = state.muted ? 0 : state.volume;
-        audio.volume = v;
-      };
-      audio.oncanplay = () => {
-        const v = state.muted ? 0 : state.volume;
-        audio.volume = v;
-      };
-    }
-
     buildWave();
 
     if (el.limit) {
@@ -341,6 +329,7 @@ const Player = (() => {
     if (el.vhandle) el.vhandle.style.left = `${v * 100}%`;
     if (el.muteIcon) el.muteIcon.textContent = v === 0 ? "volume_off" : v < 0.5 ? "volume_down" : "volume_up";
     if (audio) audio.volume = v;
+    save(); // Her volume değişiminde hemen kaydet — loadstart da localStorage'dan okuyacak
     if (state.device !== "browser") API.volumeServer(state.muted ? 0 : Math.pow(state.volume, 3));
   }
 

@@ -343,6 +343,34 @@ volumes:
   </div>
 
   <audio id="audio-player" style="display:none"></audio>
+  <script>
+    // Sayfa yüklenir yüklenmez audio elementine kaydedilmiş ses seviyesini uygula
+    // player.js'den önce çalışır — tam sessizliği garantiler
+    (function() {
+      const audio = document.getElementById('audio-player');
+      if (!audio) return;
+      try {
+        const saved = JSON.parse(localStorage.getItem('djk_player_v1') || '{}');
+        const vol = (saved.volume !== undefined && saved.volume !== null) ? saved.volume : 0.7;
+        audio.volume = saved.muted ? 0 : vol;
+      } catch(e) {
+        audio.volume = 0.7;
+      }
+      // Her yeni kaynak yüklendiğinde de uygula
+      audio.addEventListener('loadstart', function() {
+        try {
+          const saved = JSON.parse(localStorage.getItem('djk_player_v1') || '{}');
+          const vol = (saved.volume !== undefined) ? saved.volume : 0.7;
+          audio.volume = saved.muted ? 0 : vol;
+        } catch(e) {}
+      });
+      audio.addEventListener('volumechange', function() {
+        // Tarayıcı volume'u değiştirirse state ile karşılaştır ve düzelt
+        // (Bu event player.js applyVolume'dan geliyorsa dokunma)
+        audio._lastSetVolume = audio.volume;
+      });
+    })();
+  </script>
 
   <script src="js/ScreenManager.js"></script>
   <script src="js/api.js"></script>
