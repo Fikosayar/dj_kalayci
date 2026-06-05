@@ -8,7 +8,16 @@ const { exec } = require('child_process');
 let currentServerProcess = null; // Sunucuda çalan müziğin process kaydı
 
 const app = express();
-app.use(express.json()); // JSON body parse etmek için
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Multer / proxy kökenli 413 hatalarını yakala
+app.use((err, req, res, next) => {
+    if (err.code === 'LIMIT_FILE_SIZE' || err.status === 413) {
+        return res.status(413).json({ error: 'Dosya çok büyük. Maksimum 500MB.' });
+    }
+    next(err);
+});
 
 const CONFIG_FILE = path.join(process.cwd(), 'config.json');
 
