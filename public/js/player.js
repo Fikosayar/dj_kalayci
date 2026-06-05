@@ -196,10 +196,13 @@ const Player = (() => {
     drawWavePeaks(filename);
     // cover
     el.cover.classList.remove("show");
-    fetch(API.coverURL(filename))
-      .then(r => { if (!r.ok) throw 0; return r.blob(); })
-      .then(b => { el.cover.src = URL.createObjectURL(b); el.cover.classList.add("show"); })
-      .catch(() => { el.cover.classList.remove("show"); el.cover.removeAttribute("src"); });
+    const coverUrl = API.coverURL(filename);
+    if (coverUrl) {
+      fetch(coverUrl)
+        .then(r => { if (!r.ok) throw 0; return r.blob(); })
+        .then(b => { el.cover.src = URL.createObjectURL(b); el.cover.classList.add("show"); })
+        .catch(() => { el.cover.classList.remove("show"); el.cover.removeAttribute("src"); });
+    }
   }
 
   function playMusic(filename) {

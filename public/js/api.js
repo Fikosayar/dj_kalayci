@@ -58,14 +58,23 @@ const API = (() => {
   }
 
   async function detect() {
-    try {
-      const res = await fetch("/api/music?page=1&limit=1", { signal: AbortSignal.timeout(2500) });
-      if (!res.ok) throw new Error("bad status");
-      await res.json();
-      demo = false;
-    } catch (e) {
-      demo = true;
-      console.info("[DJ_Kalayci] Backend bulunamadı — DEMO modu aktif.");
+    // En fazla 2 deneme yap, sonra demo moda geç
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch("/api/music?page=1&limit=1", { signal: AbortSignal.timeout(4000) });
+        if (!res.ok) throw new Error("bad status");
+        await res.json();
+        demo = false;
+        listeners.forEach(fn => fn(demo));
+        return demo;
+      } catch (e) {
+        if (attempt < 1) {
+          await new Promise(r => setTimeout(r, 1000)); // 1sn bekle, tekrar dene
+          continue;
+        }
+        demo = true;
+        console.info("[DJ_Kalayci] Backend bulunamadı — DEMO modu aktif.");
+      }
     }
     listeners.forEach(fn => fn(demo));
     return demo;
@@ -98,7 +107,10 @@ const API = (() => {
     },
 
     streamURL(filename) { return `/api/music/play/${encodeURIComponent(filename)}`; },
-    coverURL(filename) { return `/api/music/cover/${encodeURIComponent(filename)}`; },
+    coverURL(filename) {
+      if (demo) return null; // Demo modunda cover endpoint'i yok
+      return `/api/music/cover/${encodeURIComponent(filename)}`;
+    },
 
     async getUploadPath() {
       if (demo) return { uploadPath: "/app/uploads" };
