@@ -131,10 +131,74 @@ function updateDevicePill(d) {
 }
 
 /* ---------------- upload ---------------- */
+
+// Global upload durumu — ekranlar arası geçişte kaybolmasın
+window._uploadState = window._uploadState || {
+  active: false,
+  total: 0,
+  completed: 0,
+  progresses: [],
+  failed: [],
+  done: false,
+  successMsg: ""
+};
+
 function initUpload() {
   const dz = document.getElementById("drop-zone");
   const input = document.getElementById("file-input");
   if (!dz || !input) return;
+
+  // Eğer devam eden / biten bir yükleme varsa UI'yi geri yükle
+  const us = window._uploadState;
+  if (us.active || us.done) {
+    const box = document.getElementById("upload-progress");
+    const bar = document.getElementById("upload-bar");
+    const pct = document.getElementById("upload-pct");
+    const status = document.getElementById("upload-status");
+    if (box && bar && pct && status) {
+      box.style.display = "block";
+      if (us.done) {
+        bar.style.width = "100%";
+        pct.textContent = "100%";
+        bar.style.background = us.failed.length > 0 ? "var(--danger)" : "var(--success)";
+        status.textContent = us.successMsg;
+      } else {
+        const overall = us.progresses.length
+          ? us.progresses.reduce((a, b) => a + b, 0) / us.progresses.length
+          : 0;
+        bar.style.width = overall + "%";
+        pct.textContent = Math.round(overall) + "%";
+        bar.style.background = "var(--accent)";
+        status.textContent = `⏳ ${us.completed} / ${us.total} dosya yükleniyor… (Arka planda devam ediyor)`;
+
+        // Tamamlanma bekleyip UI'yi güncelle
+        const poll = setInterval(() => {
+          if (!window._uploadState.active) {
+            clearInterval(poll);
+            const b2 = document.getElementById("upload-bar");
+            const p2 = document.getElementById("upload-pct");
+            const s2 = document.getElementById("upload-status");
+            if (b2 && p2 && s2) {
+              b2.style.width = "100%";
+              p2.textContent = "100%";
+              b2.style.background = window._uploadState.failed.length > 0 ? "var(--danger)" : "var(--success)";
+              s2.textContent = window._uploadState.successMsg;
+              setTimeout(() => { const bx = document.getElementById("upload-progress"); if (bx) bx.style.display = "none"; window._uploadState.done = false; }, 3500);
+            }
+          } else {
+            // ilerlemeyi güncelle
+            const overall2 = window._uploadState.progresses.reduce((a, b) => a + b, 0) / window._uploadState.progresses.length;
+            const b2 = document.getElementById("upload-bar");
+            const p2 = document.getElementById("upload-pct");
+            const s2 = document.getElementById("upload-status");
+            if (b2) b2.style.width = overall2 + "%";
+            if (p2) p2.textContent = Math.round(overall2) + "%";
+            if (s2) s2.textContent = `⏳ ${window._uploadState.completed} / ${window._uploadState.total} dosya yükleniyor…`;
+          }
+        }, 300);
+      }
+    }
+  }
 
   const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
   ["dragenter", "dragover", "dragleave", "drop"].forEach((ev) => dz.addEventListener(ev, stop));
@@ -145,6 +209,8 @@ function initUpload() {
 
   function handleFiles(files) {
     if (!files || !files.length) return;
+    if (window._uploadState.active) return; // Zaten yükleme devam ediyor
+
     const box = document.getElementById("upload-progress");
     const bar = document.getElementById("upload-bar");
     const pct = document.getElementById("upload-pct");
@@ -154,7 +220,7 @@ function initUpload() {
     pct.textContent = "0%";
     status.textContent = `${files.length} dosya yükleniyor…`;
 
-    if (API.isDemo) { // simüle
+    if (API.isDemo) {
       let p = 0;
       const t = setInterval(() => {
         p += 8 + Math.random() * 14;
@@ -164,15 +230,24 @@ function initUpload() {
       return;
     }
 
-    // Her dosyanın yüklenme yüzdesini takip et
-    const progresses = new Array(files.length).fill(0);
-    let completed = 0;
+    // Global state'i başlat
+    const us = window._uploadState;
+    us.active = true;
+    us.done = false;
+    us.total = files.length;
+    us.completed = 0;
+    us.failed = [];
+    us.progresses = new Array(files.length).fill(0);
+    us.successMsg = "";
 
     function updateOverall() {
-      const total = progresses.reduce((a, b) => a + b, 0) / files.length;
-      bar.style.width = total + "%";
-      pct.textContent = Math.round(total) + "%";
-      status.textContent = `${completed} / ${files.length} dosya yüklendi…`;
+      const total = us.progresses.reduce((a, b) => a + b, 0) / us.progresses.length;
+      const bar2 = document.getElementById("upload-bar");
+      const pct2 = document.getElementById("upload-pct");
+      const st2 = document.getElementById("upload-status");
+      if (bar2) { bar2.style.width = total + "%"; }
+      if (pct2) { pct2.textContent = Math.round(total) + "%"; }
+      if (st2) { st2.textContent = `${us.completed} / ${us.total} dosya yüklendi…`; }
     }
 
     function uploadOne(file, index) {
@@ -183,24 +258,23 @@ function initUpload() {
         xhr.open("POST", "/api/upload", true);
         xhr.upload.onprogress = (e) => {
           if (!e.lengthComputable) return;
-          progresses[index] = (e.loaded / e.total) * 100;
+          us.progresses[index] = (e.loaded / e.total) * 100;
           updateOverall();
         };
         xhr.onload = () => {
-          progresses[index] = 100;
-          completed++;
+          us.progresses[index] = 100;
+          us.completed++;
           updateOverall();
           resolve({ ok: xhr.status === 200, name: file.name });
         };
         xhr.onerror = () => {
-          completed++;
+          us.completed++;
           resolve({ ok: false, name: file.name });
         };
         xhr.send(fd);
       });
     }
 
-    // Eşzamanlı (concurrent) yükleme — en fazla 3 paralel bağlantı
     const CONCURRENCY = 3;
     const fileArr = Array.from(files);
     let cursor = 0;
@@ -219,15 +293,27 @@ function initUpload() {
 
     Promise.all(workers).then(() => {
       const failed = results.filter(r => !r.ok);
-      if (failed.length === 0) {
-        status.textContent = `${files.length} dosya başarıyla yüklendi! ✓`;
-        bar.style.background = "var(--success)";
-      } else {
-        status.textContent = `${failed.length} dosya hata verdi: ${failed.map(r => r.name).join(", ")}`;
-        bar.style.background = "var(--danger)";
-      }
-      input.value = "";
-      setTimeout(() => { box.style.display = "none"; }, 3500);
+      us.active = false;
+      us.done = true;
+      us.failed = failed;
+
+      const msg = failed.length === 0
+        ? `${files.length} dosya başarıyla yüklendi! ✓`
+        : `${failed.length} dosya hata verdi: ${failed.map(r => r.name).join(", ")}`;
+      us.successMsg = msg;
+
+      const bar3 = document.getElementById("upload-bar");
+      const pct3 = document.getElementById("upload-pct");
+      const st3 = document.getElementById("upload-status");
+      const bx3 = document.getElementById("upload-progress");
+      if (bar3) { bar3.style.width = "100%"; bar3.style.background = failed.length ? "var(--danger)" : "var(--success)"; }
+      if (pct3) pct3.textContent = "100%";
+      if (st3) st3.textContent = msg;
+      if (input) input.value = "";
+      setTimeout(() => {
+        if (bx3) bx3.style.display = "none";
+        us.done = false;
+      }, 3500);
     });
   }
 }
