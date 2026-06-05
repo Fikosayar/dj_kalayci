@@ -209,7 +209,11 @@ function initUpload() {
 
   function handleFiles(files) {
     if (!files || !files.length) return;
-    if (window._uploadState.active) return; // Zaten yükleme devam ediyor
+
+    // Eğer önceki yükleme tıkandıysa state'i sıfırla, yeni yüklemeye izin ver
+    if (window._uploadState.active) {
+      window._uploadState.active = false;
+    }
 
     const box = document.getElementById("upload-progress");
     const bar = document.getElementById("upload-bar");
