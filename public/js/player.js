@@ -14,7 +14,7 @@ const Player = (() => {
     isShuffle: false,
     isLoop: false,
     device: "browser",
-    volume: 1,
+    volume: 0.7,
     muted: false,
     time: 0,
     duration: 0,
@@ -215,9 +215,17 @@ const Player = (() => {
 
     if (hasRealAudio()) {
       API.stopServer();
+      const targetVol = state.muted ? 0 : state.volume;
+      audio.volume = targetVol;        // src atamadan ÖNCE set et
       audio.src = API.streamURL(filename);
-      audio.volume = state.muted ? 0 : state.volume;
-      audio.play().then(() => { state.isPlaying = true; setPlayIcon(); }).catch(() => {});
+      audio.volume = targetVol;        // src atamadan SONRA tekrar set et (bazı tarayıcılar sıfırlıyor)
+      audio.play()
+        .then(() => {
+          audio.volume = targetVol;   // play başladıktan sonra bir kez daha garantile
+          state.isPlaying = true;
+          setPlayIcon();
+        })
+        .catch(() => {});
       stopVirtual();
     } else {
       if (audio) audio.pause();
