@@ -696,46 +696,213 @@ select option { background: var(--surface); color: var(--ink); }
 .fade-in { animation: fadeIn .4s cubic-bezier(.4,0,.2,1) both; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
+/* ===================== TABLET ===================== */
 @media (max-width: 1080px) {
   .home { grid-template-columns: 1fr; gap: 30px; }
   .home-visual { max-width: 360px; }
   .player { grid-template-columns: 1fr; overflow-y: auto; }
 }
+
 @media (prefers-reduced-motion: reduce) {
   .fade-in, .home-visual-bars i, .np-mini .eq i, .track-row.playing .play-ind i { animation: none !important; }
 }
 
-/* ===================== MOBILE RESPONSIVE ===================== */
+/* ===================== MOBILE ===================== */
 @media (max-width: 768px) {
-  .app-container { flex-direction: column; }
-  .sidebar { 
-    width: 100%; max-width: none; min-width: 0; height: auto; 
-    border-right: none; border-bottom: 1px solid var(--line); 
-    padding: 15px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px;
+
+  /* ---- Temel layout: sidebar alta, bottom nav ---- */
+  body { overflow: hidden; }
+
+  .app-container {
+    flex-direction: column;
+    height: 100dvh; /* dynamic viewport height — mobil tarayıcı chrome'unu hesaba katar */
   }
-  .sidebar .brand { margin-bottom: 5px; }
-  .sidebar .nav-label { display: none; }
-  .sidebar .nav-links { display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px; margin: 0; }
-  .sidebar .nav-links li { margin-bottom: 0; flex: 1 1 auto; justify-content: center; padding: 8px; font-size: 13px; min-width: 100px; }
-  .sidebar .nav-links li span { font-size: 18px; margin-right: 6px; }
-  
-  .sidebar-bottom { margin-top: 0; border-top: none; padding-top: 0; }
-  .sidebar-bottom .np-mini { display: none; } /* Hide mini player on mobile to save vertical space */
-  
-  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .content { padding: 15px; overflow-y: auto; }
-  .topbar { padding: 15px; flex-wrap: wrap; gap: 10px; height: auto; }
-  
-  .home { display: flex; flex-direction: column; gap: 20px; }
-  .home-visual { max-width: 100%; width: 100%; }
-  
-  .player { display: flex; flex-direction: column; }
-  .player-main { width: 100%; max-width: none; min-width: 0; border-right: none; border-bottom: 1px solid var(--line); }
-  .player-list { width: 100%; flex: 1; }
-  
-  .screen-party .player-main { width: 100% !important; max-width: 100% !important; }
-  .screen-party .screen.fade-in { padding: 20px !important; }
-  
-  .card { padding: 20px; }
-  .up-drop { padding: 20px 10px; }
+
+  /* Sidebar tamamen gizle, yerine altta nav bar gelecek */
+  .sidebar { display: none; }
+
+  /* Main alanı tüm ekranı kaplasın */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* ---- Topbar ---- */
+  .topbar {
+    height: auto;
+    min-height: 54px;
+    padding: 10px 16px;
+    flex-wrap: nowrap;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .topbar-title { font-size: 16px; }
+  .topbar-right { gap: 8px; flex-shrink: 0; }
+
+  /* Parti butonu küçülsün */
+  #btn-party .dp-name { display: none; }
+  #btn-party { padding: 8px 10px; }
+
+  /* Tema değiştirici butonlar daha küçük */
+  .dir-switch button { padding: 5px 10px; font-size: 11px; }
+
+  /* ---- İçerik alanı ---- */
+  .content {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(16px + 70px); /* bottom nav için boşluk */
+  }
+
+  .screen {
+    max-width: 100%;
+    margin: 0;
+    height: auto;
+    min-height: 100%;
+  }
+
+  /* ---- HOME ---- */
+  .home {
+    display: flex;
+    flex-direction: column-reverse; /* Görsel üstte, metin altta */
+    gap: 24px;
+    height: auto;
+    padding-bottom: 16px;
+  }
+
+  .home h1 { font-size: clamp(28px, 8vw, 42px); margin-bottom: 14px; }
+  .home p { font-size: 15px; margin-bottom: 20px; }
+  .home-eyebrow { margin-bottom: 14px; }
+
+  .home-visual {
+    width: 100%;
+    max-width: 100%;
+    aspect-ratio: 16 / 9; /* Telefonda yatay görünüm daha iyi */
+  }
+
+  .home-visual-bars { height: 60px; padding: 12px 16px; }
+
+  .home-cta { flex-direction: column; align-items: stretch; gap: 10px; }
+  .home-cta .btn { justify-content: center; padding: 14px; }
+
+  .home-stats {
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 24px;
+    padding-top: 18px;
+  }
+  .home-stat { flex: 1 1 40%; }
+  .home-stat b { font-size: 22px; }
+
+  /* ---- PLAYER ---- */
+  .player {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    height: auto;
+  }
+
+  .player-main {
+    width: 100%;
+    padding: 16px;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+    justify-content: flex-start;
+  }
+
+  /* Kapak küçülsün */
+  .cover {
+    max-width: 180px;
+    margin-bottom: 16px;
+  }
+
+  .track-meta h2 { font-size: 18px; }
+  .track-meta { margin-bottom: 16px; }
+
+  .wave-wrap { margin-bottom: 10px; }
+  .wave { height: 48px; }
+
+  /* Kontroller daha kompakt */
+  .controls { gap: 16px; margin: 14px auto 12px; }
+  .ctrl .material-symbols-rounded { font-size: 22px; }
+  .ctrl.lg .material-symbols-rounded { font-size: 30px; }
+  .play-btn { width: 54px; height: 54px; }
+  .play-btn .material-symbols-rounded { font-size: 28px; }
+
+  .volume { max-width: 100%; }
+
+  /* Müzik listesi */
+  .player-list { width: 100%; border: none; }
+
+  .list-head { padding: 14px 16px 10px; }
+  .list-controls { padding: 8px 16px 8px; flex-wrap: wrap; gap: 8px; }
+  .list-controls select { flex: 1; min-width: 80px; }
+
+  .music-list { max-height: 300px; }
+  .track-row { padding: 10px 16px; }
+  .track-dur { display: none; } /* Süre sütunu mobilde gizle */
+
+  /* ---- UPLOAD ---- */
+  .upload-wrap { max-width: 100%; padding-top: 8px; }
+  .dropzone { padding: 36px 20px; }
+  .dropzone h3 { font-size: 18px; }
+  .dropzone p { font-size: 13px; }
+  .dropzone .du-icon { width: 56px; height: 56px; margin-bottom: 16px; }
+  .dropzone .du-icon .material-symbols-rounded { font-size: 28px; }
+
+  /* ---- SETTINGS ---- */
+  .settings-grid { grid-template-columns: 1fr; }
+  .card { padding: 16px; }
+
+  /* ---- BOTTOM NAV BAR ---- */
+  .mobile-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 66px;
+    background: var(--bg-tint);
+    border-top: 1px solid var(--line);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    z-index: 1000;
+    align-items: stretch;
+  }
+
+  .mobile-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    cursor: pointer;
+    color: var(--ink-faint);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    transition: color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    border: none;
+    background: transparent;
+    padding: 0;
+  }
+  .mobile-nav-item .material-symbols-rounded { font-size: 22px; }
+  .mobile-nav-item.active {
+    color: var(--accent);
+  }
+  .mobile-nav-item.active .material-symbols-rounded {
+    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+  }
 }
+
+/* Desktop'ta mobile nav gizle */
+.mobile-nav { display: none; }
+

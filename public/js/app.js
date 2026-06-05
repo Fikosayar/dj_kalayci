@@ -11,6 +11,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const sm = new ScreenManager("main-content");
   window.sm = sm;
 
+  // Sidebar nav (desktop)
   const nav = document.querySelectorAll(".nav-links li[data-target]");
   nav.forEach((li) => li.addEventListener("click", () => {
     nav.forEach((n) => n.classList.remove("active"));
@@ -18,10 +19,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     sm.navigate(li.dataset.target);
   }));
 
+  // Mobile bottom nav
+  const mobileNavItems = document.querySelectorAll(".mobile-nav-item[data-target]");
+  mobileNavItems.forEach((btn) => btn.addEventListener("click", () => {
+    sm.navigate(btn.dataset.target);
+  }));
+
+  // Ekran değişince hem sidebar hem mobile nav'ı senkronize et
   window.addEventListener("screenChanged", (e) => {
     const s = e.detail.screen;
     const t = document.getElementById("topbar-title");
     if (t) t.textContent = SCREEN_TITLES[s] || "";
+
+    // Sidebar active
+    nav.forEach((n) => n.classList.toggle("active", n.dataset.target === s));
+
+    // Mobile nav active
+    mobileNavItems.forEach((btn) => btn.classList.toggle("active", btn.dataset.target === s));
+
     if (s === "settings") initDirectoryBrowser();
     if (s === "upload") initUpload();
     if (s === "player" || s === "party") Player.init();
