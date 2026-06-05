@@ -268,8 +268,14 @@ function initUpload() {
         xhr.onload = () => {
           us.progresses[index] = 100;
           us.completed++;
-          updateOverall();
-          resolve({ ok: xhr.status === 200, name: file.name });
+          if (xhr.status === 413) {
+            // Dosya boyutu Traefik/proxy limiti aştı
+            updateOverall();
+            resolve({ ok: false, name: file.name, reason: '413' });
+          } else {
+            updateOverall();
+            resolve({ ok: xhr.status === 200, name: file.name });
+          }
         };
         xhr.onerror = () => {
           us.completed++;
@@ -297,13 +303,19 @@ function initUpload() {
 
     Promise.all(workers).then(() => {
       const failed = results.filter(r => !r.ok);
+      const has413 = results.some(r => r.reason === '413');
       us.active = false;
       us.done = true;
       us.failed = failed;
 
-      const msg = failed.length === 0
-        ? `${files.length} dosya başarıyla yüklendi! ✓`
-        : `${failed.length} dosya hata verdi: ${failed.map(r => r.name).join(", ")}`;
+      let msg;
+      if (failed.length === 0) {
+        msg = `${files.length} dosya başarıyla yüklendi! ✓`;
+      } else if (has413) {
+        msg = `⚠️ Dosya çok büyük! Coolify → Uygulama → Advanced → Custom Labels alanına proxy limit ekleyin.`;
+      } else {
+        msg = `${failed.length} dosya hata verdi: ${failed.map(r => r.name).join(", ")}`;
+      }
       us.successMsg = msg;
 
       const bar3 = document.getElementById("upload-bar");

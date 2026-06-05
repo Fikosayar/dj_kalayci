@@ -184,11 +184,10 @@ app.get('/api/music/cover/:filename', async (req, res) => {
             res.setHeader('Content-Type', picture.format);
             res.send(picture.data);
         } else {
-            res.status(404).send('Cover not found');
+            res.status(204).end(); // No cover art — no content, no console error
         }
     } catch (error) {
-        console.error('Metadata okuma hatası:', error.message);
-        res.status(500).json({ error: 'Metadata okunamadı' });
+        res.status(204).end(); // Parse error — silently return no content
     }
 });
 
