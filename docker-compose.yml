@@ -22,6 +22,12 @@ services:
     volumes:
       # Uploads klasörünü kalıcı yapıyoruz
       - dj_kalayci_uploads:/app/uploads
+    labels:
+      # Traefik: Büyük dosya yüklemelerine (MP3 set vb.) izin ver
+      - "traefik.http.middlewares.dj-upload-buffer.buffering.maxRequestBodyBytes=524288000"
+      - "traefik.http.middlewares.dj-upload-buffer.buffering.maxResponseBodyBytes=524288000"
+      - "traefik.http.middlewares.dj-upload-buffer.buffering.memRequestBodyBytes=10485760"
+      - "traefik.http.routers.dj_kalayci_app.middlewares=dj-upload-buffer"
 
 volumes:
   dj_kalayci_uploads:
