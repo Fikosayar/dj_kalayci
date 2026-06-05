@@ -104,7 +104,10 @@ const storage = multer.diskStorage({
         cb(null, safeName + '-' + Date.now() + parsed.ext);
     }
 });
-const upload = multer({ storage: storage });
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 500 * 1024 * 1024 } // 500MB max per file
+});
 
 app.post('/api/upload', upload.array('files'), (req, res) => {
     if (!req.files || req.files.length === 0) {

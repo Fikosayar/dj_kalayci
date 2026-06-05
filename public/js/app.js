@@ -164,24 +164,71 @@ function initUpload() {
       return;
     }
 
-    const fd = new FormData();
-    for (const f of files) fd.append("files", f);
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/upload", true);
-    xhr.upload.onprogress = (e) => {
-      if (!e.lengthComputable) return;
-      const p = (e.loaded / e.total) * 100;
-      bar.style.width = p + "%"; pct.textContent = Math.round(p) + "%";
-    };
-    xhr.onload = () => {
-      if (xhr.status === 200) {
-        status.textContent = JSON.parse(xhr.responseText).message;
-        bar.style.background = "var(--success)"; input.value = "";
-        setTimeout(() => { box.style.display = "none"; }, 3000);
-      } else { status.textContent = "Hata!"; bar.style.background = "var(--danger)"; }
-    };
-    xhr.onerror = () => { status.textContent = "Ağ Hatası!"; bar.style.background = "var(--danger)"; };
-    xhr.send(fd);
+    // Her dosyanın yüklenme yüzdesini takip et
+    const progresses = new Array(files.length).fill(0);
+    let completed = 0;
+
+    function updateOverall() {
+      const total = progresses.reduce((a, b) => a + b, 0) / files.length;
+      bar.style.width = total + "%";
+      pct.textContent = Math.round(total) + "%";
+      status.textContent = `${completed} / ${files.length} dosya yüklendi…`;
+    }
+
+    function uploadOne(file, index) {
+      return new Promise((resolve) => {
+        const fd = new FormData();
+        fd.append("files", file);
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/upload", true);
+        xhr.upload.onprogress = (e) => {
+          if (!e.lengthComputable) return;
+          progresses[index] = (e.loaded / e.total) * 100;
+          updateOverall();
+        };
+        xhr.onload = () => {
+          progresses[index] = 100;
+          completed++;
+          updateOverall();
+          resolve({ ok: xhr.status === 200, name: file.name });
+        };
+        xhr.onerror = () => {
+          completed++;
+          resolve({ ok: false, name: file.name });
+        };
+        xhr.send(fd);
+      });
+    }
+
+    // Eşzamanlı (concurrent) yükleme — en fazla 3 paralel bağlantı
+    const CONCURRENCY = 3;
+    const fileArr = Array.from(files);
+    let cursor = 0;
+    const results = [];
+
+    function next() {
+      if (cursor >= fileArr.length) return Promise.resolve();
+      const i = cursor++;
+      return uploadOne(fileArr[i], i).then(res => {
+        results.push(res);
+        return next();
+      });
+    }
+
+    const workers = Array.from({ length: Math.min(CONCURRENCY, fileArr.length) }, next);
+
+    Promise.all(workers).then(() => {
+      const failed = results.filter(r => !r.ok);
+      if (failed.length === 0) {
+        status.textContent = `${files.length} dosya başarıyla yüklendi! ✓`;
+        bar.style.background = "var(--success)";
+      } else {
+        status.textContent = `${failed.length} dosya hata verdi: ${failed.map(r => r.name).join(", ")}`;
+        bar.style.background = "var(--danger)";
+      }
+      input.value = "";
+      setTimeout(() => { box.style.display = "none"; }, 3500);
+    });
   }
 }
 
