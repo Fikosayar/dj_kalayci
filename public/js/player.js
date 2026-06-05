@@ -90,6 +90,18 @@ const Player = (() => {
     };
     audio = el.audio;
 
+    // Audio her yeni kaynak yüklemeye başladığında volume'u garantile
+    if (audio) {
+      audio.onloadstart = () => {
+        const v = state.muted ? 0 : state.volume;
+        audio.volume = v;
+      };
+      audio.oncanplay = () => {
+        const v = state.muted ? 0 : state.volume;
+        audio.volume = v;
+      };
+    }
+
     buildWave();
 
     if (el.limit) {
@@ -372,19 +384,32 @@ const Player = (() => {
       };
     }
 
-    // volume drag — el.vbar her ekran girişinde yenilenir, setVol global tutulur
-    window.__djkSetVol = (e) => {
+    // volume drag — mouse + touch desteği
+    const getVolFromEvent = (e) => {
       const bar = document.getElementById("vbar");
       if (!bar) return;
       const r = bar.getBoundingClientRect();
-      let p = (e.clientX - r.left) / r.width; p = Math.min(1, Math.max(0, p));
-      state.volume = p; if (p > 0) state.muted = false; applyVolume(); save();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      let p = (clientX - r.left) / r.width;
+      p = Math.min(1, Math.max(0, p));
+      state.volume = p;
+      if (p > 0) state.muted = false;
+      applyVolume();
+      save();
     };
-    el.vbar.addEventListener("mousedown", (e) => { window.__djkVDrag = true; window.__djkSetVol(e); });
+    window.__djkSetVol = getVolFromEvent;
+
+    // Mouse events
+    el.vbar.addEventListener("mousedown", (e) => { window.__djkVDrag = true; getVolFromEvent(e); });
+
+    // Touch events (mobil)
+    el.vbar.addEventListener("touchstart", (e) => { e.preventDefault(); window.__djkVDrag = true; getVolFromEvent(e); }, { passive: false });
+    el.vbar.addEventListener("touchmove",  (e) => { e.preventDefault(); if (window.__djkVDrag) getVolFromEvent(e); }, { passive: false });
+    el.vbar.addEventListener("touchend",   () => { window.__djkVDrag = false; });
 
     if (!windowBound) {
-      window.addEventListener("mousemove", (e) => { if (window.__djkVDrag) window.__djkSetVol(e); });
-      window.addEventListener("mouseup", () => { window.__djkVDrag = false; });
+      window.addEventListener("mousemove", (e) => { if (window.__djkVDrag) getVolFromEvent(e); });
+      window.addEventListener("mouseup",   () => { window.__djkVDrag = false; });
       windowBound = true;
     }
   }
