@@ -23,6 +23,8 @@ const Player = (() => {
   // DOM refs (her ekran girişinde yenilenir)
   let el = {};
   let audio = null;
+  // audio'yu her zaman güvenle al — init() çağrılmamış olsa bile
+  const getAudio = () => audio || (audio = document.getElementById('audio-player'));
   let virtualTimer = null;
   let lastPlayedBar = -1;
   let windowBound = false;
@@ -218,23 +220,28 @@ const Player = (() => {
 
     if (hasRealAudio()) {
       API.stopServer();
+      API.stopRadioServer();
+      const a = getAudio();
       const targetVol = state.muted ? 0 : state.volume;
-      audio.volume = targetVol;        // src atamadan ÖNCE set et
-      audio.src = API.streamURL(filename);
-      audio.volume = targetVol;        // src atamadan SONRA tekrar set et (bazı tarayıcılar sıfırlıyor)
-      audio.play()
+      a.pause();
+      a.volume = targetVol;
+      a.src = API.streamURL(filename);
+      a.play()
         .then(() => {
-          audio.volume = targetVol;   // play başladıktan sonra bir kez daha garantile
+          a.volume = targetVol;
           state.isPlaying = true;
           setPlayIcon();
         })
         .catch(() => {});
       stopVirtual();
     } else {
-      if (audio) audio.pause();
-      if (state.device !== "browser") {
-        // Önce ses seviyesini gönder, sonra çal — mpg123 %100 ile başlamasın
-        API.volumeServer(state.muted ? 0 : Math.pow(state.volume, 3));
+      // Sunucu modu — browser audio'yu tamamen durdur
+      const a = getAudio();
+      a.pause();
+      a.removeAttribute('src');
+      a.load();
+      if (state.device !== 'browser') {
+        API.volumeServer(state.muted ? 0 : state.volume);
         API.playServer(filename);
       }
       state.isPlaying = true;
@@ -249,8 +256,9 @@ const Player = (() => {
       if (state.playlist.length) playMusic(state.playlist[0]);
       return;
     }
+    const a = getAudio();
     if (hasRealAudio()) {
-      audio.paused ? audio.play().catch(()=>{}) : audio.pause();
+      a.paused ? a.play().catch(()=>{}) : a.pause();
     } else {
       if (state.device !== "browser") API.pauseServer();
       state.isPlaying = !state.isPlaying;
@@ -337,7 +345,8 @@ const Player = (() => {
     if (el.muteIcon) el.muteIcon.textContent = v === 0 ? "volume_off" : v < 0.5 ? "volume_down" : "volume_up";
     if (audio) audio.volume = v;
     save(); // Her volume değişiminde hemen kaydet — loadstart da localStorage'dan okuyacak
-    if (state.device !== "browser") API.volumeServer(state.muted ? 0 : Math.pow(state.volume, 3));
+    if (state.device !== "browser") API.volumeServer(state.muted ? 0 : state.volume);
+
   }
 
   // sidebar mini now-playing
@@ -419,24 +428,29 @@ const Player = (() => {
     if (id === "browser") {
       // Sunucuyu durdur, tarayıcıya geç
       API.stopServer();
+      API.stopRadioServer();
       stopVirtual();
+      const a = getAudio();
       if (state.current && !API.isDemo) {
-        audio.src = API.streamURL(state.current);
-        audio.volume = state.muted ? 0 : state.volume;
-        audio.currentTime = state.time || 0;
+        a.src = API.streamURL(state.current);
+        a.volume = state.muted ? 0 : state.volume;
+        a.currentTime = state.time || 0;
         if (wasPlaying) {
-          audio.play().catch(() => {});
+          a.play().catch(() => {});
         }
       } else if (wasPlaying) {
         startVirtual();
       }
     } else {
-      // Tarayıcıyı durdur, sunucuya geç
-      if (audio) { audio.pause(); audio.removeAttribute('src'); }
-      stopVirtual();
+      // Tarayıcıyı tamamen durdur, sunucuya geç
+      const a = getAudio();
+      a.pause();
+      a.removeAttribute('src');
+      a.load(); // Tamamen sıfırla
       if (state.current) {
         // Cihaz değişince her zaman yeniden çal (wasPlaying olmasa bile)
-        API.volumeServer(state.muted ? 0 : Math.pow(state.volume, 3));
+        API.volumeServer(state.muted ? 0 : state.volume);
+
         API.playServer(state.current).then(() => {
           state.isPlaying = true;
           setPlayIcon();
@@ -449,9 +463,13 @@ const Player = (() => {
 
   // Diğer modüller radyo/player çakışmasını önlemek için kullanabilir
   function stopAll() {
-    if (audio) { audio.pause(); }
+    const a = getAudio();
+    a.pause();
+    a.removeAttribute('src');
+    a.load();
     stopVirtual();
     API.stopServer();
+    API.stopRadioServer();
     state.isPlaying = false;
     setPlayIcon();
   }

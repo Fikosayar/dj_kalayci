@@ -448,6 +448,17 @@ let serverPlayerState = {
 // mpg123 ile sessiz bir WAV döngüsü yerine, tamamen kaldırdık çünkü dmix zaten karıştırmayı
 // handle ediyor ve çoğu modern hoparlör uyku moduna girmez.
 
+// --- ALSA Sistem Ses Seviyesi Sıfırlama ---
+// Container başlarken ALSA master volume'u %100'e getir ve mute'u kaldır
+setTimeout(() => {
+    exec('amixer sset Master 100% unmute 2>/dev/null || true', (err, stdout) => {
+        if (!err) console.log('[ALSA] Master volume %100 ayarlandı.');
+    });
+    exec('amixer sset PCM 100% unmute 2>/dev/null || true', () => {});
+    exec('amixer sset Speaker 100% unmute 2>/dev/null || true', () => {});
+    exec('amixer sset Headphone 100% unmute 2>/dev/null || true', () => {});
+}, 2000);
+
 app.post('/api/music/play-server', (req, res) => {
     const { filename } = req.body;
     if (!filename) return res.status(400).json({ error: 'Dosya adı gerekli' });
@@ -503,9 +514,10 @@ app.post('/api/music/play-server', (req, res) => {
     // Müziği yükle ve çal komutu
     currentServerProcess.stdin.write(`L ${filePath}\n`);
 
-    // Hemen ses seviyesini uygula (mpg123 varsayılan %100 ile başlatır)
-    const savedVol = serverPlayerState.lastVolume ?? 100;
+    // Hemen ses seviyesini uygula — mpg123 V komutu 0-100 arası
+    const savedVol = serverPlayerState.lastVolume ?? 70;
     currentServerProcess.stdin.write(`V ${savedVol}\n`);
+    console.log(`[mpg123] Dosya yüklendi: ${filename}, Volume: ${savedVol}`);
 
     res.json({ success: true, message: 'Sunucuda çalınmaya başlandı.' });
 });
@@ -530,11 +542,16 @@ app.post('/api/music/pause-server', (req, res) => {
 app.post('/api/music/volume-server', (req, res) => {
     const { volume } = req.body; // 0.0 ile 1.0 arası gelir
     if (volume !== undefined) {
-        const percent = Math.round(volume * 100);
-        serverPlayerState.lastVolume = percent; // Bir sonraki playServer için kaydet
+        // Doğrusal çevirme: 0.7 slider → 70 mpg123 (küpsel değil)
+        const percent = Math.round(Math.max(0, Math.min(1, volume)) * 100);
+        serverPlayerState.lastVolume = percent;
         if (currentServerProcess) {
             currentServerProcess.stdin.write(`V ${percent}\n`);
         }
+        if (radioServerProcess) {
+            // Radio mpg123 için yeniden başlatma gerekebilir — şimdilik sadece kaydet
+        }
+        console.log(`[Volume] ${percent}%`);
     }
     res.json({ success: true });
 });
