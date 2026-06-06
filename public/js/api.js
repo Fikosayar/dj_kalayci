@@ -167,6 +167,17 @@ const API = (() => {
         body: JSON.stringify({ volume })
       }).then(r => r.json());
     },
+    async playRadioServer(url, volume) {
+      if (demo) return { success: true };
+      return fetch("/api/radio/play-server", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, volume })
+      }).then(r => r.json());
+    },
+    async stopRadioServer() {
+      if (demo) return { success: true };
+      return fetch("/api/radio/stop-server", { method: "POST" }).then(r => r.json());
+    },
     async seekServer(percent) {
       if (demo) return { success: true };
       return fetch("/api/music/seek-server", {

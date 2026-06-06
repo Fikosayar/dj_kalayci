@@ -62,9 +62,14 @@ function initRadio() {
   let radioPlaying = false;
   let currentStationName = '';
   let currentUrl = '';
-  let hls = null; // HLS.js instance
+  let hls = null;
 
-  // --- Yardımcı ---
+  // Şu an hangi cihaz seçili?
+  function isServerMode() {
+    return window.Player && Player.state && Player.state.device !== 'browser';
+  }
+
+  // --- UI güncelle ---
   function setStatus(playing, name, statusText) {
     const npName   = document.getElementById('radio-np-name');
     const npStatus = document.getElementById('radio-np-status');
@@ -80,7 +85,6 @@ function initRadio() {
     if (playIcon) playIcon.textContent = playing ? 'stop' : 'play_arrow';
     if (playLbl)  playLbl.textContent  = playing ? 'Durdur' : 'Oynat';
 
-    // Preset kartlarında aktif işareti
     document.querySelectorAll('.radio-preset-card').forEach(c => {
       c.classList.toggle('playing', playing && c.dataset.url === currentUrl);
     });
@@ -96,7 +100,6 @@ function initRadio() {
   }
 
   async function resolveStream(url) {
-    // .pls veya .m3u playlist ise sunücu tarafında çözdür
     const lower = url.toLowerCase();
     if (lower.endsWith('.pls') || lower.endsWith('.m3u')) {
       try {
@@ -108,17 +111,32 @@ function initRadio() {
     return url;
   }
 
+  // --- Durdur (her ikisini de) ---
+  function stop() {
+    // Browser audio durdur
+    if (hls) { hls.destroy(); hls = null; }
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+    // Server radyo durdur
+    API.stopRadioServer();
+    setStatus(false, currentStationName || '', 'Durdu');
+    radioPlaying = false;
+    currentUrl = '';
+  }
+
+  // Global referans — player.js müzik başlatırken radyoyu durdurabilsin
+  window.__radioStop = stop;
+
+  // --- Oynat ---
   async function play(url, name) {
     if (!url || !url.startsWith('http')) {
-      setStatus(false, '', 'Geçersiz URL');
-      return;
+      setStatus(false, '', 'Geçersiz URL'); return;
     }
 
-    // Player'ı tamamen durdur (çakışma önleme)
+    // Müzik çalıyorsa durdur (player'ı durdur)
     if (window.Player && Player.stopAll) Player.stopAll();
-
-    // Önce durdur
-    stop();
+    stop(); // Önceki radyoyu da temizle
 
     currentUrl = url;
     currentStationName = name || url;
@@ -127,49 +145,50 @@ function initRadio() {
     const streamUrl = await resolveStream(url);
     const vol = loadSavedVol();
 
-    // HLS (.m3u8) mi?
-    if (streamUrl.includes('.m3u8')) {
-      // HLS.js lazım
-      if (!window.Hls) {
-        setStatus(false, currentStationName, 'HLS yükleniyor…');
-        await loadScript('https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js');
-      }
-      if (window.Hls && Hls.isSupported()) {
-        hls = new Hls();
-        hls.loadSource(streamUrl);
-        hls.attachMedia(audio);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          audio.volume = vol;
-          audio.play().then(() => setStatus(true, currentStationName, 'Canlı Yayın')).catch(() => setStatus(false, currentStationName, 'Oynatma hatası'));
-        });
-        hls.on(Hls.Events.ERROR, (e, d) => { if (d.fatal) setStatus(false, currentStationName, 'Bağlantı kesildi'); });
-      } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
-        // Safari native HLS
-        audio.src = streamUrl; audio.volume = vol;
-        audio.play().then(() => setStatus(true, currentStationName, 'Canlı Yayın')).catch(() => setStatus(false, currentStationName, 'Oynatma hatası'));
+    if (isServerMode()) {
+      // ===== SUNUCU MODU: mpg123 ile URL'i çal =====
+      try {
+        await API.playRadioServer(streamUrl, vol);
+        setStatus(true, currentStationName, 'Canlı Yayın (Sunucu)');
+      } catch(e) {
+        setStatus(false, currentStationName, 'Sunucu bağlantı hatası');
       }
     } else {
-      // Düz MP3 / AAC stream
-      audio.src = streamUrl;
-      audio.volume = vol;
-      audio.play()
-        .then(() => setStatus(true, currentStationName, 'Canlı Yayın'))
-        .catch(() => setStatus(false, currentStationName, 'Oynatma hatası — CORS veya codec sorunu olabilir'));
+      // ===== TARAYICI MODU: <audio> elementi =====
+      if (streamUrl.includes('.m3u8')) {
+        if (!window.Hls) {
+          setStatus(false, currentStationName, 'HLS yükleniyor…');
+          await loadScript('https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js');
+        }
+        if (window.Hls && Hls.isSupported()) {
+          hls = new Hls();
+          hls.loadSource(streamUrl);
+          hls.attachMedia(audio);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            audio.volume = vol;
+            audio.play()
+              .then(() => setStatus(true, currentStationName, 'Canlı Yayın'))
+              .catch(() => setStatus(false, currentStationName, 'Oynatma hatası'));
+          });
+          hls.on(Hls.Events.ERROR, (e, d) => { if (d.fatal) setStatus(false, currentStationName, 'Bağlantı kesildi'); });
+        } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+          audio.src = streamUrl; audio.volume = vol;
+          audio.play().then(() => setStatus(true, currentStationName, 'Canlı Yayın')).catch(() => setStatus(false, currentStationName, 'Oynatma hatası'));
+        }
+      } else {
+        audio.src = streamUrl;
+        audio.volume = vol;
+        audio.play()
+          .then(() => setStatus(true, currentStationName, 'Canlı Yayın'))
+          .catch(() => setStatus(false, currentStationName, 'Oynatma hatası — CORS veya codec sorunu'));
+      }
+
+      audio.onended  = () => setStatus(false, currentStationName, 'Yayın sona erdi');
+      audio.onerror  = () => { if (radioPlaying || currentUrl) setStatus(false, currentStationName, 'Akış hatası'); };
+      audio.onwaiting= () => { if (radioPlaying) { const el = document.getElementById('radio-np-status'); if (el) el.textContent = 'Tamponlanıyor…'; } };
+      audio.onplaying= () => { if (currentUrl) { const el = document.getElementById('radio-np-status'); if (el) el.textContent = 'Canlı Yayın'; } };
     }
   }
-
-  function stop() {
-    if (hls) { hls.destroy(); hls = null; }
-    audio.pause();
-    audio.removeAttribute('src');
-    audio.load();
-    setStatus(false, currentStationName || '', 'Durdu');
-    radioPlaying = false;
-    currentUrl = '';
-  }
-
-  // Global referans — player.js müzik başlatırken radyoyu durdurabilsin
-  window.__radioStop = stop;
 
   function loadScript(src) {
     return new Promise((res, rej) => {
@@ -181,8 +200,8 @@ function initRadio() {
   }
 
   // --- UI bağlantıları ---
-  const playBtn   = document.getElementById('radio-play-btn');
-  const urlInput  = document.getElementById('radio-url-input');
+  const playBtn  = document.getElementById('radio-play-btn');
+  const urlInput = document.getElementById('radio-url-input');
 
   if (playBtn) {
     playBtn.onclick = () => {
@@ -205,12 +224,6 @@ function initRadio() {
       play(url, name);
     });
   });
-
-  // audio eventi kesilince güncelle
-  audio.addEventListener('ended',  () => setStatus(false, currentStationName, 'Yayın sona erdi'));
-  audio.addEventListener('error',  () => { if (radioPlaying || currentUrl) setStatus(false, currentStationName, 'Akış hatası'); });
-  audio.addEventListener('waiting',() => { if (radioPlaying) { const el = document.getElementById('radio-np-status'); if (el) el.textContent = 'Tamponlanıyor…'; } });
-  audio.addEventListener('playing',() => { if (currentUrl) { const el = document.getElementById('radio-np-status'); if (el) el.textContent = 'Canlı Yayın'; } });
 }
 
 /* ---------------- Library ---------------- */

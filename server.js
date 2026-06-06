@@ -6,6 +6,20 @@ const mm = require('music-metadata');
 const { exec } = require('child_process');
 
 let currentServerProcess = null; // Sunucuda çalan müziğin process kaydı
+let radioServerProcess   = null; // Sunucuda çalan radyo stream process kaydı
+
+// Yardımcı: her iki process'i de durdur
+function killAllServerAudio() {
+    if (currentServerProcess) {
+        try { currentServerProcess.stdin.write('Q\n'); } catch(e) {}
+        try { currentServerProcess.kill('SIGKILL'); } catch(e) {}
+        currentServerProcess = null;
+    }
+    if (radioServerProcess) {
+        try { radioServerProcess.kill('SIGKILL'); } catch(e) {}
+        radioServerProcess = null;
+    }
+}
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -287,10 +301,50 @@ app.get('/api/radio/resolve', async (req, res) => {
             if (lines.length > 0) streamUrl = lines[0];
         }
 
-        res.json({ streamUrl: streamUrl || url });
+    res.json({ streamUrl: streamUrl || url });
     } catch (err) {
         res.json({ streamUrl: url }); // Hata olursa orijinal URL'i dön
     }
+});
+
+// --- RADYO SUNUCU OYNATMA ---
+app.post('/api/radio/play-server', (req, res) => {
+    const { url, volume } = req.body;
+    if (!url) return res.status(400).json({ error: 'URL gerekli' });
+
+    // Her iki server audio'yu durdur (çakışma önleme)
+    killAllServerAudio();
+
+    const { spawn } = require('child_process');
+    const vol = volume !== undefined ? Math.round(volume * 100) : 70;
+
+    // mpg123 doğrudan URL'i çalabilir, -R moduna gerek yok stream için
+    radioServerProcess = spawn('mpg123', ['--scale', String(vol * 327), '-o', 'alsa', url]);
+
+    radioServerProcess.stderr.on('data', (data) => {
+        const msg = data.toString();
+        if (!msg.includes('High Performance') && !msg.includes('MPEG')) {
+            console.log('[Radio]', msg.trim());
+        }
+    });
+    radioServerProcess.on('close', (code) => {
+        console.log(`[Radio] mpg123 kapandı (code: ${code})`);
+        radioServerProcess = null;
+    });
+    radioServerProcess.on('error', (err) => {
+        console.error('[Radio] mpg123 hatası:', err.message);
+        radioServerProcess = null;
+    });
+
+    res.json({ success: true, message: 'Radyo sunucuda çalınıyor.' });
+});
+
+app.post('/api/radio/stop-server', (req, res) => {
+    if (radioServerProcess) {
+        try { radioServerProcess.kill('SIGKILL'); } catch(e) {}
+        radioServerProcess = null;
+    }
+    res.json({ success: true });
 });
 
 // --- KÜTÜPHANE: Tüm dosyalar + boyut bilgisi ---
@@ -400,12 +454,8 @@ app.post('/api/music/play-server', (req, res) => {
 
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Dosya bulunamadı' });
 
-    // Eğer zaten mpg123 açıksa kapat
-    if (currentServerProcess) {
-        try { currentServerProcess.stdin.write('Q\n'); } catch (e) {}
-        currentServerProcess.kill('SIGKILL');
-        currentServerProcess = null;
-    }
+    // Her ikisini de durdur (müzik veya radyo çalıyor olabilir)
+    killAllServerAudio();
 
     // mpg123'ü "Remote Control" (-R) modunda başlatıyoruz ki komut gönderebilelim
     currentServerProcess = spawn('mpg123', ['-R', '-o', 'alsa']);
