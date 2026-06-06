@@ -531,8 +531,7 @@ app.post('/api/music/play-server', (req, res) => {
     currentServerProcess.stdin.write(`L ${filePath}\n`);
 
     // Hemen ses seviyesini uygula — mpg123 V komutu 0-100 arası
-    const rawVol = serverPlayerState.lastVolume ?? 70;
-    const savedVol = rawVol === 0 ? 0 : Math.max(25, rawVol); // Mute=0, aksi halde min %25
+    const savedVol = serverPlayerState.lastVolume ?? 70;
     currentServerProcess.stdin.write(`V ${savedVol}\n`);
     console.log(`[mpg123] Dosya yüklendi: ${filename}, Volume: ${savedVol}`);
 
@@ -559,10 +558,7 @@ app.post('/api/music/pause-server', (req, res) => {
 app.post('/api/music/volume-server', (req, res) => {
     const { volume } = req.body; // 0.0 ile 1.0 arası gelir
     if (volume !== undefined) {
-        // Doğrusal çevirme + minimum %25 taban (çok düşük gitmemesi için)
-        const raw = Math.max(0, Math.min(1, volume));
-        // 0 = mute, 0.01-0.24 = %25 (taban), 0.25-1.0 = doğrusal
-        const percent = raw === 0 ? 0 : Math.round(Math.max(25, raw * 100));
+        const percent = Math.round(Math.max(0, Math.min(1, volume)) * 100);
         serverPlayerState.lastVolume = percent;
         if (currentServerProcess) {
             currentServerProcess.stdin.write(`V ${percent}\n`);
