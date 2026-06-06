@@ -420,16 +420,19 @@ app.get('/api/devices', (req, res) => {
 
 // --- DEBUG: mpg123 & ses durumu ---
 app.get('/api/debug/audio', (req, res) => {
-    exec('which mpg123 && mpg123 --version 2>&1 | head -2', (err, stdout, stderr) => {
+    exec('which mpg123 && mpg123 --version 2>&1 | head -2', (err, stdout) => {
         const mpg123Info = err ? `HATA: ${err.message}` : stdout.trim();
         exec('aplay -l 2>&1', (err2, stdout2) => {
             const alsaDevices = err2 ? `HATA: ${err2.message}` : stdout2.trim();
-            res.json({
-                mpg123: mpg123Info,
-                alsaDevices: alsaDevices,
-                musicProcessRunning: !!currentServerProcess,
-                radioProcessRunning: !!radioServerProcess,
-                serverPlayerState
+            exec('amixer sget Master 2>/dev/null || amixer sget PCM 2>/dev/null || echo "mixer bulunamadi"', (err3, stdout3) => {
+                res.json({
+                    mpg123: mpg123Info,
+                    alsaDevices: alsaDevices,
+                    alsaMixer: (stdout3 || '').trim().substring(0, 400),
+                    musicProcessRunning: !!currentServerProcess,
+                    radioProcessRunning: !!radioServerProcess,
+                    serverPlayerState
+                });
             });
         });
     });
@@ -448,16 +451,29 @@ let serverPlayerState = {
 // mpg123 ile sessiz bir WAV döngüsü yerine, tamamen kaldırdık çünkü dmix zaten karıştırmayı
 // handle ediyor ve çoğu modern hoparlör uyku moduna girmez.
 
-// --- ALSA Sistem Ses Seviyesi Sıfırlama ---
-// Container başlarken ALSA master volume'u %100'e getir ve mute'u kaldır
+// --- ALSA Sistem Ses Seviyesi Sıfırlama + ANTİ-BUZZ ---
+// Container başlarken ALSA master volume'u %100'e getir, hoparlor uyku modunu engelle
 setTimeout(() => {
-    exec('amixer sset Master 100% unmute 2>/dev/null || true', (err, stdout) => {
+    // Mixer'ları çıkar ve %100 yap
+    exec('amixer sset Master 100% unmute 2>/dev/null || true', (err) => {
         if (!err) console.log('[ALSA] Master volume %100 ayarlandı.');
     });
     exec('amixer sset PCM 100% unmute 2>/dev/null || true', () => {});
     exec('amixer sset Speaker 100% unmute 2>/dev/null || true', () => {});
     exec('amixer sset Headphone 100% unmute 2>/dev/null || true', () => {});
-}, 2000);
+    exec('amixer sset "Front" 100% unmute 2>/dev/null || true', () => {});
+
+    // ANTI-BUZZ: aplay -D dmixer ile sessiz ses çal.
+    // "-D dmixer" = directly targets the dmix plugin, shared access, does NOT block mpg123.
+    // "-D default" blocked because it went through the plug layer with exclusive hw open.
+    const antiBuzz = spawn('aplay', ['-D', 'dmixer', '-c', '2', '-r', '44100', '-f', 'S16_LE', '/dev/zero']);
+    antiBuzz.on('error', (err) => console.log('[Anti-Buzz] aplay bulunamadı veya hata:', err.message));
+    antiBuzz.stderr.on('data', (d) => {
+        const msg = d.toString();
+        if (!msg.includes('Playing raw')) console.log('[Anti-Buzz]', msg.trim());
+    });
+    console.log('[Anti-Buzz] Hoparlor uyuşönleme başlatıldı.');
+}, 3000);
 
 app.post('/api/music/play-server', (req, res) => {
     const { filename } = req.body;
@@ -515,7 +531,8 @@ app.post('/api/music/play-server', (req, res) => {
     currentServerProcess.stdin.write(`L ${filePath}\n`);
 
     // Hemen ses seviyesini uygula — mpg123 V komutu 0-100 arası
-    const savedVol = serverPlayerState.lastVolume ?? 70;
+    const rawVol = serverPlayerState.lastVolume ?? 70;
+    const savedVol = rawVol === 0 ? 0 : Math.max(25, rawVol); // Mute=0, aksi halde min %25
     currentServerProcess.stdin.write(`V ${savedVol}\n`);
     console.log(`[mpg123] Dosya yüklendi: ${filename}, Volume: ${savedVol}`);
 
@@ -542,14 +559,16 @@ app.post('/api/music/pause-server', (req, res) => {
 app.post('/api/music/volume-server', (req, res) => {
     const { volume } = req.body; // 0.0 ile 1.0 arası gelir
     if (volume !== undefined) {
-        // Doğrusal çevirme: 0.7 slider → 70 mpg123 (küpsel değil)
-        const percent = Math.round(Math.max(0, Math.min(1, volume)) * 100);
+        // Doğrusal çevirme + minimum %25 taban (çok düşük gitmemesi için)
+        const raw = Math.max(0, Math.min(1, volume));
+        // 0 = mute, 0.01-0.24 = %25 (taban), 0.25-1.0 = doğrusal
+        const percent = raw === 0 ? 0 : Math.round(Math.max(25, raw * 100));
         serverPlayerState.lastVolume = percent;
         if (currentServerProcess) {
             currentServerProcess.stdin.write(`V ${percent}\n`);
         }
         if (radioServerProcess) {
-            // Radio mpg123 için yeniden başlatma gerekebilir — şimdilik sadece kaydet
+            radioServerProcess.stdin && radioServerProcess.stdin.write(`V ${percent}\n`);
         }
         console.log(`[Volume] ${percent}%`);
     }
