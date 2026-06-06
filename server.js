@@ -265,6 +265,34 @@ app.get('/api/music/cover/:filename', async (req, res) => {
     }
 });
 
+// --- RADYO: PLS/M3U playlist çözümleyici ---
+app.get('/api/radio/resolve', async (req, res) => {
+    const url = req.query.url;
+    if (!url) return res.status(400).json({ error: 'URL gerekli' });
+
+    try {
+        const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) });
+        const text = await response.text();
+
+        let streamUrl = null;
+
+        // PLS formatı
+        if (url.toLowerCase().endsWith('.pls') || text.includes('[playlist]')) {
+            const match = text.match(/File\d+=(.+)/i);
+            if (match) streamUrl = match[1].trim();
+        }
+        // M3U formatı
+        else if (url.toLowerCase().endsWith('.m3u') || text.startsWith('#EXTM3U') || text.startsWith('#EXTINF')) {
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+            if (lines.length > 0) streamUrl = lines[0];
+        }
+
+        res.json({ streamUrl: streamUrl || url });
+    } catch (err) {
+        res.json({ streamUrl: url }); // Hata olursa orijinal URL'i dön
+    }
+});
+
 // --- KÜTÜPHANE: Tüm dosyalar + boyut bilgisi ---
 app.get('/api/library', (req, res) => {
     const config = getConfig();

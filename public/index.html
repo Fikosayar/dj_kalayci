@@ -36,6 +36,7 @@
         <li data-target="upload"><span class="material-symbols-rounded">cloud_upload</span>Müzik Yükle</li>
         <li data-target="player"><span class="material-symbols-rounded">play_circle</span>Oynatıcı</li>
         <li data-target="library"><span class="material-symbols-rounded">library_music</span>Kütüphane</li>
+        <li data-target="radio"><span class="material-symbols-rounded">radio</span>Radyo</li>
       </ul>
 
       <div class="sidebar-bottom">
@@ -249,6 +250,101 @@
     </div>
   </template>
 
+  <!-- ===================== SCREEN: RADIO ===================== -->
+  <template id="screen-radio">
+    <div class="screen fade-in">
+      <div class="radio-wrap">
+
+        <!-- Üst kısım: Now Playing -->
+        <div class="radio-now-playing" id="radio-np">
+          <div class="radio-np-art" id="radio-np-art">
+            <span class="material-symbols-rounded">radio</span>
+          </div>
+          <div class="radio-np-info">
+            <div class="radio-np-label">CANLI YAYIN</div>
+            <div class="radio-np-name" id="radio-np-name">Radyo seçin veya URL girin</div>
+            <div class="radio-np-status" id="radio-np-status">Bekliyor</div>
+          </div>
+          <div class="radio-np-eq" id="radio-eq" style="display:none">
+            <i></i><i></i><i></i><i></i><i></i>
+          </div>
+        </div>
+
+        <!-- URL girişi -->
+        <div class="radio-url-card card">
+          <div class="radio-url-row">
+            <div class="radio-url-input-wrap">
+              <span class="material-symbols-rounded">link</span>
+              <input type="url" id="radio-url-input"
+                placeholder="Stream URL yapıştırın (http://... .mp3 / .m3u8 / .pls)"
+                autocomplete="off" spellcheck="false">
+            </div>
+            <button class="btn btn-primary" id="radio-play-btn">
+              <span class="material-symbols-rounded" id="radio-play-icon">play_arrow</span>
+              <span id="radio-play-label">Oynat</span>
+            </button>
+          </div>
+          <p class="radio-url-hint">MP3 stream, AAC, HLS (.m3u8) ve PLS/M3U playlist URL’leri desteklenir.</p>
+        </div>
+
+        <!-- Hazır radyolar -->
+        <div class="radio-presets-title">Hazır Radyolar</div>
+        <div class="radio-presets" id="radio-presets">
+
+          <button class="radio-preset-card" data-url="https://www.radyodinle.info/radyo-dinle/trt-radyo-1.mp3" data-name="TRT Radyo 1">
+            <div class="rpc-icon" style="background:linear-gradient(135deg,#1a237e,#283593)"><span class="material-symbols-rounded">radio</span></div>
+            <div class="rpc-name">TRT Radyo 1</div>
+            <div class="rpc-tag">Kültür &amp; Müzik</div>
+          </button>
+
+          <button class="radio-preset-card" data-url="https://trtradyo3.live.trt.com.tr/master.m3u8" data-name="TRT FM">
+            <div class="rpc-icon" style="background:linear-gradient(135deg,#880e4f,#ad1457)"><span class="material-symbols-rounded">radio</span></div>
+            <div class="rpc-name">TRT FM</div>
+            <div class="rpc-tag">Pop &amp; Rock</div>
+          </button>
+
+          <button class="radio-preset-card" data-url="https://kralpop.radyotvonline.com/kralpop" data-name="Kral Pop">
+            <div class="rpc-icon" style="background:linear-gradient(135deg,#4a148c,#6a1b9a)"><span class="material-symbols-rounded">radio</span></div>
+            <div class="rpc-name">Kral Pop</div>
+            <div class="rpc-tag">Türk Pop</div>
+          </button>
+
+          <button class="radio-preset-card" data-url="https://kralmuzik.radyotvonline.net/kralmuzik" data-name="Kral Müzik">
+            <div class="rpc-icon" style="background:linear-gradient(135deg,#1b5e20,#2e7d32)"><span class="material-symbols-rounded">radio</span></div>
+            <div class="rpc-name">Kral Müzik</div>
+            <div class="rpc-tag">Türkçe Hit</div>
+          </button>
+
+          <button class="radio-preset-card" data-url="https://powerturk.radyotvonline.net/powerturk" data-name="Power Türk">
+            <div class="rpc-icon" style="background:linear-gradient(135deg,#b71c1c,#c62828)"><span class="material-symbols-rounded">radio</span></div>
+            <div class="rpc-name">Power Türk</div>
+            <div class="rpc-tag">En Çok Dinlenen</div>
+          </button>
+
+          <button class="radio-preset-card" data-url="https://radyoviva.radyotvonline.net/radyoviva" data-name="Radyo Viva">
+            <div class="rpc-icon" style="background:linear-gradient(135deg,#e65100,#ef6c00)"><span class="material-symbols-rounded">radio</span></div>
+            <div class="rpc-name">Radyo Viva</div>
+            <div class="rpc-tag">Pop</div>
+          </button>
+
+          <button class="radio-preset-card" data-url="https://jazz24.org/stream" data-name="Jazz 24">
+            <div class="rpc-icon" style="background:linear-gradient(135deg,#263238,#37474f)"><span class="material-symbols-rounded">piano</span></div>
+            <div class="rpc-name">Jazz 24</div>
+            <div class="rpc-tag">Jazz</div>
+          </button>
+
+          <button class="radio-preset-card" data-url="https://streams.ilovemusic.de/iloveradio17.mp3" data-name="Deep House Radio">
+            <div class="rpc-icon" style="background:linear-gradient(135deg,#006064,#00838f)"><span class="material-symbols-rounded">waves</span></div>
+            <div class="rpc-name">Deep House Radio</div>
+            <div class="rpc-tag">House &amp; Electronic</div>
+          </button>
+
+        </div>
+
+      </div>
+    </div>
+  </template>
+
   <!-- ===================== SCREEN: SETTINGS ===================== -->
   <template id="screen-settings">
     <div class="screen fade-in">
@@ -446,6 +542,10 @@ volumes:
       <span class="material-symbols-rounded">play_circle</span>
       Oynatıcı
     </button>
+    <button class="mobile-nav-item" data-target="radio">
+      <span class="material-symbols-rounded">radio</span>
+      Radyo
+    </button>
     <button class="mobile-nav-item" data-target="library">
       <span class="material-symbols-rounded">library_music</span>
       Kütüphane
@@ -453,10 +553,6 @@ volumes:
     <button class="mobile-nav-item" data-target="upload">
       <span class="material-symbols-rounded">cloud_upload</span>
       Yükle
-    </button>
-    <button class="mobile-nav-item" data-target="settings">
-      <span class="material-symbols-rounded">settings</span>
-      Ayarlar
     </button>
   </nav>
 
