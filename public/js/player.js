@@ -481,7 +481,7 @@ const Player = (() => {
     setPlayIcon();
   }
 
-  return { init, playMusic, setDevice, stopAll, state };
+  return { init, playMusic, setDevice, stopAll, state, save };
 })();
 
 // const ile tanımlanan değişkenler window'a eklenmez.

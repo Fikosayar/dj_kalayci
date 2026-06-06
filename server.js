@@ -7,6 +7,7 @@ const { exec, spawn } = require('child_process');
 
 let currentServerProcess = null; // Sunucuda çalan müziğin process kaydı
 let radioServerProcess   = null; // Sunucuda çalan radyo stream process kaydı
+let radioServerUrl       = null; // Şu an çalan radyo URL'i (volume restart için)
 
 // Yardımcı: her iki process'i de durdur
 function killAllServerAudio() {
@@ -361,78 +362,53 @@ app.get('/api/radio/test', (req, res) => {
     }, 4000);
 });
 
-// --- RADYO SUNUCU OYNATMA ---
-app.post('/api/radio/play-server', (req, res) => {
-    const { url, volume } = req.body;
-    if (!url) return res.status(400).json({ error: 'URL gerekli' });
-
-    console.log(`[Radio] Istek alindi - URL: ${url}, Volume: ${volume}`);
-
-    // Her iki server audio'yu durdur
+// --- RADYO HELPER: curl|mpg123 pipe ile stream baslat ---
+function startRadioStream(url, vol01) {
+    // Onceki sesleri durdur
     killAllServerAudio();
+    radioServerUrl = url;
 
-    // Ses seviyesi: volume 0-1 arasi, -f parametresi 0-32768 arasi
-    const vol = volume !== undefined ? Math.max(0, Math.min(1, volume)) : 0.7;
-    const scale = Math.round(Math.pow(vol, 3) * 32768);
+    const scale = Math.round(Math.pow(Math.max(0, Math.min(1, vol01)), 3) * 32768);
     const finalScale = Math.max(100, scale);
 
-    // mpg123 1.26.4 (Debian) HTTP/HTTPS destegi YOK - URL'leri dosya olarak aciyor
-    // Cozum: curl ile stream'i indirip pipe ile mpg123'e aktar
-    // curl -sL = sessiz + redirect takip, mpg123 - = stdin'den oku
     const curlProcess = spawn('curl', ['-sL', '--no-buffer', url]);
     const mpg123Process = spawn('mpg123', ['-o', 'alsa', '-f', String(finalScale), '-']);
-
-    // curl stdout -> mpg123 stdin pipe
     curlProcess.stdout.pipe(mpg123Process.stdin);
 
-    // radioServerProcess olarak mpg123'u tut (ses kontrolu icin)
-    // ama curl referansini da sakla (durdurmak icin)
     radioServerProcess = mpg123Process;
     radioServerProcess._curlProcess = curlProcess;
     const thisRadio = mpg123Process;
 
-    console.log(`[Radio] curl|mpg123 baslatildi - scale: ${finalScale}, curl PID: ${curlProcess.pid}, mpg123 PID: ${mpg123Process.pid}`);
+    console.log(`[Radio] curl|mpg123 baslatildi - scale: ${finalScale}, vol: ${vol01}`);
 
-    curlProcess.stderr.on('data', (d) => {
-        const msg = d.toString().trim();
-        if (msg) console.log('[Radio curl stderr]', msg);
-    });
-    curlProcess.on('error', (err) => {
-        console.error('[Radio curl hata]', err.message);
-    });
-    curlProcess.on('close', (code) => {
-        console.log(`[Radio] curl kapandi (code: ${code})`);
-    });
+    curlProcess.stderr.on('data', (d) => { const m = d.toString().trim(); if (m) console.log('[Radio curl]', m); });
+    curlProcess.on('error', (e) => console.error('[Radio curl err]', e.message));
+    curlProcess.on('close', (c) => console.log(`[Radio] curl kapandi (${c})`));
 
-    mpg123Process.stderr.on('data', (d) => {
-        const msg = d.toString().trim();
-        if (msg) console.log('[Radio mpg123 stderr]', msg);
-    });
-    mpg123Process.stdout.on('data', (d) => {
-        const msg = d.toString().trim();
-        if (msg) console.log('[Radio mpg123 stdout]', msg);
-    });
-    mpg123Process.on('close', (code) => {
-        console.log(`[Radio] mpg123 kapandi (code: ${code})`);
-        if (radioServerProcess === thisRadio) radioServerProcess = null;
-    });
-    mpg123Process.on('error', (err) => {
-        console.error('[Radio mpg123 hata]', err.message);
-        if (radioServerProcess === thisRadio) radioServerProcess = null;
-    });
+    mpg123Process.stderr.on('data', (d) => { const m = d.toString().trim(); if (m) console.log('[Radio mpg123]', m); });
+    mpg123Process.on('close', (c) => { console.log(`[Radio] mpg123 kapandi (${c})`); if (radioServerProcess === thisRadio) radioServerProcess = null; });
+    mpg123Process.on('error', (e) => { console.error('[Radio mpg123 err]', e.message); if (radioServerProcess === thisRadio) radioServerProcess = null; });
+}
 
+// --- RADYO SUNUCU OYNATMA ---
+app.post('/api/radio/play-server', (req, res) => {
+    const { url, volume } = req.body;
+    if (!url) return res.status(400).json({ error: 'URL gerekli' });
+    console.log(`[Radio] Istek alindi - URL: ${url}, Volume: ${volume}`);
+    const vol = volume !== undefined ? volume : 0.7;
+    startRadioStream(url, vol);
     res.json({ success: true, message: 'Radyo sunucuda caliniyor.' });
 });
 
 app.post('/api/radio/stop-server', (req, res) => {
     if (radioServerProcess) {
-        // curl process'i de durdur (pipe)
         if (radioServerProcess._curlProcess) {
             try { radioServerProcess._curlProcess.kill('SIGKILL'); } catch(e) {}
         }
         try { radioServerProcess.kill('SIGKILL'); } catch(e) {}
         radioServerProcess = null;
     }
+    radioServerUrl = null;
     res.json({ success: true });
 });
 
@@ -652,16 +628,26 @@ app.post('/api/music/pause-server', (req, res) => {
     res.json({ success: true });
 });
 
+let _radioVolTimer = null;
 app.post('/api/music/volume-server', (req, res) => {
     const { volume } = req.body; // 0.0 ile 1.0 arası gelir
     if (volume !== undefined) {
-        const percent = Math.round(Math.max(0, Math.min(1, volume)) * 100);
+        const vol01 = Math.max(0, Math.min(1, volume));
+        const percent = Math.round(vol01 * 100);
         serverPlayerState.lastVolume = percent;
         if (currentServerProcess) {
             currentServerProcess.stdin.write(`V ${percent}\n`);
         }
-        // Not: Radyo -f parametresiyle baslatiyor, canli volume degistirme yok
-        // Volume degistirince radyo yeniden baslatilmali
+        // Radyo caliyorsa: debounce ile restart (her pixel icin degil)
+        if (radioServerProcess && radioServerUrl) {
+            clearTimeout(_radioVolTimer);
+            _radioVolTimer = setTimeout(() => {
+                if (radioServerProcess && radioServerUrl) {
+                    console.log(`[Radio Volume] Restart - vol: ${vol01}`);
+                    startRadioStream(radioServerUrl, vol01);
+                }
+            }, 400); // 400ms debounce
+        }
         console.log(`[Volume] ${percent}%`);
     }
     res.json({ success: true });

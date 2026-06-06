@@ -50,6 +50,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   sm.navigate("home");
   initDeviceModal();
+  initSidebarVolume();
 
   // backend tespiti arka planda — ana sayfayı bloklamasın
   await API.init();
@@ -737,4 +738,91 @@ function setPathUI(path, ok) {
   input.value = path;
   if (ok) { input.classList.add("input-success"); if (icon) icon.style.opacity = "1"; }
   else { input.classList.remove("input-success"); if (icon) icon.style.opacity = "0"; }
+}
+
+/* ======== Sidebar Volume Control ======== */
+function initSidebarVolume() {
+  const track  = document.getElementById('sidebar-vol-track');
+  const fill   = document.getElementById('sidebar-vol-fill');
+  const handle = document.getElementById('sidebar-vol-handle');
+  const pct    = document.getElementById('sidebar-vol-pct');
+  const muteBtn= document.getElementById('sidebar-mute');
+  const muteIcn= document.getElementById('sidebar-mute-icon');
+  if (!track || !fill || !handle) return;
+
+  // Player state'ten oku
+  function getVol()   { return (window.Player && Player.state) ? Player.state.volume : 0.7; }
+  function getMuted() { return (window.Player && Player.state) ? Player.state.muted : false; }
+
+  function render() {
+    const v = getMuted() ? 0 : getVol();
+    const p = Math.round(v * 100);
+    fill.style.width = p + '%';
+    handle.style.left = p + '%';
+    if (pct) pct.textContent = p + '%';
+    if (muteIcn) {
+      muteIcn.textContent = getMuted() ? 'volume_off' : (getVol() < 0.01 ? 'volume_mute' : getVol() < 0.5 ? 'volume_down' : 'volume_up');
+    }
+  }
+
+  function setVol(v) {
+    v = Math.max(0, Math.min(1, v));
+    if (window.Player && Player.state) {
+      Player.state.volume = v;
+      Player.state.muted = false;
+      // localStorage'a kaydet
+      if (Player.save) Player.save();
+    }
+    // Browser audio
+    const audio = document.getElementById('audio-player');
+    if (audio) audio.volume = v;
+    // Server volume
+    if (window.Player && Player.state && Player.state.device !== 'browser') {
+      API.volumeServer(Math.pow(v, 3));
+    }
+    render();
+    // Player'daki volume bar'ları da güncelle
+    syncPlayerVBars(v);
+  }
+
+  function syncPlayerVBars(v) {
+    const p = Math.round(v * 100) + '%';
+    document.querySelectorAll('#vbar-fill').forEach(el => el.style.width = p);
+    document.querySelectorAll('#vbar-handle').forEach(el => el.style.left = p);
+    const mi = document.getElementById('mute-icon');
+    if (mi) mi.textContent = v < 0.01 ? 'volume_mute' : v < 0.5 ? 'volume_down' : 'volume_up';
+  }
+
+  // Drag
+  let dragging = false;
+  function volFromEvent(e) {
+    const rect = track.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  }
+
+  track.addEventListener('mousedown', (e) => { dragging = true; setVol(volFromEvent(e)); });
+  track.addEventListener('touchstart', (e) => { e.preventDefault(); dragging = true; setVol(volFromEvent(e)); }, { passive: false });
+  window.addEventListener('mousemove', (e) => { if (dragging) setVol(volFromEvent(e)); });
+  window.addEventListener('touchmove', (e) => { if (dragging) setVol(volFromEvent(e)); }, { passive: true });
+  window.addEventListener('mouseup', () => { dragging = false; });
+  window.addEventListener('touchend', () => { dragging = false; });
+
+  // Mute toggle
+  if (muteBtn) muteBtn.addEventListener('click', () => {
+    if (window.Player && Player.state) {
+      Player.state.muted = !Player.state.muted;
+      const v = Player.state.muted ? 0 : Player.state.volume;
+      const audio = document.getElementById('audio-player');
+      if (audio) audio.volume = v;
+      if (Player.state.device !== 'browser') {
+        API.volumeServer(Player.state.muted ? 0 : Math.pow(Player.state.volume, 3));
+      }
+    }
+    render();
+  });
+
+  // Periyodik senkronizasyon (player'dan değişiklik olursa)
+  setInterval(render, 500);
+  render();
 }

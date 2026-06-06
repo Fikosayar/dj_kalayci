@@ -211,6 +211,48 @@ body {
 
 .sidebar-bottom { margin-top: auto; }
 
+/* Sidebar Volume Control */
+.sidebar-vol {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-top: 12px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+}
+.sidebar-vol-btn {
+  background: none; border: none; color: var(--text-2); cursor: pointer;
+  padding: 0; display: flex; align-items: center;
+  font-size: 20px; transition: color .2s;
+}
+.sidebar-vol-btn:hover { color: var(--accent); }
+.sidebar-vol-btn .material-symbols-rounded { font-size: 20px; }
+.sidebar-vol-track {
+  flex: 1; height: 6px; background: var(--line);
+  border-radius: 3px; position: relative; cursor: pointer;
+  min-width: 60px;
+}
+.sidebar-vol-fill {
+  height: 100%; width: 70%; border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.05s linear;
+}
+.sidebar-vol-handle {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bg);
+  position: absolute; top: 50%; transform: translate(-50%, -50%);
+  left: 70%; cursor: grab; opacity: 0; transition: opacity .2s;
+  box-shadow: 0 0 6px rgba(var(--accent-rgb), .4);
+}
+.sidebar-vol:hover .sidebar-vol-handle { opacity: 1; }
+.sidebar-vol-pct {
+  font-size: 11px; color: var(--text-3);
+  font-family: var(--font-mono);
+  min-width: 30px; text-align: right;
+}
+
 /* now playing mini in sidebar */
 .np-mini {
   margin-top: 14px;
