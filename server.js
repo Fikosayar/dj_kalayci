@@ -384,97 +384,91 @@ app.get('/api/radio/test', (req, res) => {
     }, 4000);
 });
 
-// --- RADYO HELPER: curl|mpg123 veya ffmpeg|mpg123 pipe ile stream baslat ---
+// --- RADYO HELPER ---
 function isHLS(url) {
-    // m3u8 veya HLS playlist URL'leri
     return /\.(m3u8|m3u)(\?|$)/i.test(url);
 }
 
+let _radioStartTime = 0; // Yeni başlatma zamanı — debounce restart'ı önlemek için
+
 function startRadioStream(url, vol01) {
-    // Onceki sesleri durdur
     killAllServerAudio();
-    radioServerUrl = url;
+    radioServerUrl  = url;
+    _radioStartTime = Date.now();
 
-    const scale = Math.round(Math.pow(Math.max(0, Math.min(1, vol01)), 3) * 32768);
-    const finalScale = Math.max(100, scale);
-
-    let sourceProcess;
-    const mpg123Process = spawn('mpg123', ['-o', 'alsa', '-f', String(finalScale), '-']);
+    const vol01c = Math.max(0, Math.min(1, vol01));
+    const cubic  = Math.pow(vol01c, 3);
 
     if (isHLS(url)) {
-        // HLS/m3u8: ffmpeg ile çöz, raw PCM çıkar, mpg123 stdin'e ver
-        // -i: girdi URL, -vn: video yok, -f s16le: raw PCM, -ar 44100: sample rate, -ac 2: stereo, pipe:1: stdout
-        sourceProcess = spawn('ffmpeg', [
-            '-re', '-i', url,
-            '-vn', '-f', 's16le', '-ar', '44100', '-ac', '2',
-            'pipe:1'
-        ]);
-        // ffmpeg PCM → mpg123 raw mode için farklı parametreler gerekli
-        // mpg123'ü tekrar başlat: PCM raw mod
-        const mpg123Raw = spawn('mpg123', ['-o', 'alsa', '-f', String(finalScale), '--no-icy-meta', '-r', '44100', '--stereo', '-']);
-        // Not: mpg123 raw PCM kabul etmez doğrudan — aplay kullanalım
-        // Alternatif: ffmpeg'den direkt ALSA'ya yaz
-        mpg123Raw.kill('SIGKILL'); // kullanmayacağız
-
-        // FFmpeg doğrudan ALSA'ya yazar (volume ffmpeg ile kontrol edilir)
-        // -filter:a volume=: volume ayarı (0.0-1.0)
-        const volLinear = Math.pow(Math.max(0, Math.min(1, vol01)), 3).toFixed(4);
-        sourceProcess.kill('SIGKILL');
-        sourceProcess = spawn('ffmpeg', [
-            '-re', '-i', url,
-            '-vn',
-            '-af', `volume=${volLinear}`,
-            '-f', 'alsa', 'dmixer'
+        // HLS/m3u8: ffmpeg ile direkt ALSA'ya yaz
+        // 'default' ALSA cihazı → asound.conf üzerinden plug → dmixer zinciri
+        // volume filtresi: 0.0-1.0 arası cubic eğri
+        const volLinear = cubic.toFixed(6);
+        const proc = spawn('ffmpeg', [
+            '-re',
+            '-i', url,
+            '-vn',                          // video kanalı yok
+            '-af', `volume=${volLinear}`,   // ses seviyesi
+            '-f', 'alsa',
+            'default'                       // default → plug → dmixer
         ]);
 
-        radioServerProcess = sourceProcess;
-        radioServerProcess._curlProcess = null; // curl yok, ffmpeg direkt
-        radioServerProcess._isHLS = true;
-        const thisRadio = sourceProcess;
+        radioServerProcess = proc;
+        proc._curlProcess = null;
+        proc._isHLS       = true;
+        const thisRadio   = proc;
 
-        console.log(`[Radio HLS] ffmpeg baslatildi - url: ${url}, vol: ${volLinear}`);
+        console.log(`[Radio HLS] ffmpeg başlatıldı: vol=${volLinear} (ham=${Math.round(vol01c*100)}%)`);
 
-        sourceProcess.stderr.on('data', (d) => {
-            const m = d.toString().trim();
-            // ffmpeg çok verbose, sadece error/warning göster
-            if (m && (m.includes('Error') || m.includes('error') || m.includes('Failed') || m.startsWith('ffmpeg'))) {
-                const short = m.split('\n')[0].substring(0, 120);
-                if (short) console.log('[Radio ffmpeg]', short);
-            }
+        // ffmpeg stderr'i tam logla — ALSA/bağlantı hatalarını görmek için
+        let stderrBuf = '';
+        proc.stderr.on('data', (d) => {
+            stderrBuf += d.toString();
+            const lines = stderrBuf.split('\n');
+            stderrBuf = lines.pop(); // son yarım satırı sakla
+            lines.forEach(l => {
+                l = l.trim();
+                if (l && !l.startsWith('frame=') && !l.startsWith('size=') && !l.includes('kb/s') && l.length > 3) {
+                    console.log('[Radio HLS]', l.substring(0, 150));
+                }
+            });
         });
-        sourceProcess.stdout.on('data', () => {}); // stdout'u tüket (pipe yoksa buffer dolar)
-        sourceProcess.on('close', (c) => {
-            console.log(`[Radio HLS] ffmpeg kapandi (${c})`);
+        proc.stdout.on('data', () => {}); // buffer dolmasın
+        proc.on('close', (c, sig) => {
+            console.log(`[Radio HLS] ffmpeg kapandı (code:${c} sig:${sig})`);
             if (radioServerProcess === thisRadio) radioServerProcess = null;
         });
-        sourceProcess.on('error', (e) => {
-            console.error('[Radio HLS] ffmpeg hata:', e.message);
+        proc.on('error', (e) => {
+            console.error('[Radio HLS] spawn hata:', e.message);
             if (radioServerProcess === thisRadio) radioServerProcess = null;
         });
-        mpg123Process.kill('SIGKILL'); // HLS modunda mpg123 kullanmıyoruz
 
     } else {
         // MP3/AAC stream: curl | mpg123
-        sourceProcess = spawn('curl', ['-sL', '--no-buffer', url]);
+        const scale      = Math.round(cubic * 32768);
+        const finalScale = Math.max(100, scale);
 
-        sourceProcess.stdout.on('error', (e) => { if (e.code !== 'EPIPE') console.log('[Radio curl pipe err]', e.code); });
-        mpg123Process.stdin.on('error', (e) => { if (e.code !== 'EPIPE' && e.code !== 'ERR_STREAM_DESTROYED') console.log('[Radio mpg123 stdin err]', e.code); });
-        sourceProcess.stdout.pipe(mpg123Process.stdin, { end: false });
+        const curlProc = spawn('curl', ['-sL', '--no-buffer', url]);
+        const mpg123   = spawn('mpg123', ['-o', 'alsa', '-f', String(finalScale), '-']);
 
-        radioServerProcess = mpg123Process;
-        radioServerProcess._curlProcess = sourceProcess;
-        radioServerProcess._isHLS = false;
-        const thisRadio = mpg123Process;
+        curlProc.stdout.on('error', (e) => { if (e.code !== 'EPIPE') console.log('[Radio curl pipe err]', e.code); });
+        mpg123.stdin.on('error',    (e) => { if (e.code !== 'EPIPE' && e.code !== 'ERR_STREAM_DESTROYED') console.log('[Radio mpg123 stdin err]', e.code); });
+        curlProc.stdout.pipe(mpg123.stdin, { end: false });
 
-        console.log(`[Radio MP3] curl|mpg123 baslatildi - scale: ${finalScale}, vol: ${vol01}`);
+        radioServerProcess              = mpg123;
+        radioServerProcess._curlProcess = curlProc;
+        radioServerProcess._isHLS       = false;
+        const thisRadio                 = mpg123;
 
-        sourceProcess.stderr.on('data', (d) => { const m = d.toString().trim(); if (m) console.log('[Radio curl]', m); });
-        sourceProcess.on('error', (e) => console.error('[Radio curl err]', e.message));
-        sourceProcess.on('close', (c) => console.log(`[Radio] curl kapandi (${c})`));
+        console.log(`[Radio MP3] curl|mpg123 başlatıldı — scale:${finalScale} (ham:${Math.round(vol01c*100)}%)`);
 
-        mpg123Process.stderr.on('data', (d) => { const m = d.toString().trim(); if (m) console.log('[Radio mpg123]', m); });
-        mpg123Process.on('close', (c) => { console.log(`[Radio] mpg123 kapandi (${c})`); if (radioServerProcess === thisRadio) radioServerProcess = null; });
-        mpg123Process.on('error', (e) => { console.error('[Radio mpg123 err]', e.message); if (radioServerProcess === thisRadio) radioServerProcess = null; });
+        curlProc.stderr.on('data', (d) => { const m = d.toString().trim(); if (m) console.log('[Radio curl]', m); });
+        curlProc.on('error', (e) => console.error('[Radio curl err]', e.message));
+        curlProc.on('close', (c) => console.log(`[Radio] curl kapandı (${c})`));
+
+        mpg123.stderr.on('data', (d) => { const m = d.toString().trim(); if (m) console.log('[Radio mpg123]', m); });
+        mpg123.on('close', (c) => { console.log(`[Radio] mpg123 kapandı (${c})`); if (radioServerProcess === thisRadio) radioServerProcess = null; });
+        mpg123.on('error', (e) => { console.error('[Radio mpg123 err]', e.message); if (radioServerProcess === thisRadio) radioServerProcess = null; });
     }
 }
 
@@ -729,15 +723,18 @@ app.post('/api/music/volume-server', (req, res) => {
             currentServerProcess.stdin.write(`V ${percent}\n`);
         }
         // Radyo caliyorsa: debounce ile restart
-        // vol01 (ham) gönder — startRadioStream içinde cubic zaten uygulanıyor
+        // KURAL: Radyo yeni başlatıldıysa (< 3sn) restart YAPMA
         if (radioServerProcess && radioServerUrl) {
             clearTimeout(_radioVolTimer);
             _radioVolTimer = setTimeout(() => {
-                if (radioServerProcess && radioServerUrl) {
-                    console.log(`[Radio Volume] Restart - vol: ${vol01}, cubic: ${cubic.toFixed(4)}, scale: ${Math.round(cubic * 32768)}`);
+                const sinceStart = Date.now() - _radioStartTime;
+                if (radioServerProcess && radioServerUrl && sinceStart > 3000) {
+                    console.log(`[Radio Volume] Restart - vol: ${vol01}, cubic: ${cubic.toFixed(4)}`);
                     startRadioStream(radioServerUrl, vol01);
+                } else if (sinceStart <= 3000) {
+                    console.log(`[Radio Volume] Restart atlandı — radyo ${Math.round(sinceStart/100)/10}sn önce başlatıldı`);
                 }
-            }, 600); // 600ms debounce - slider bitene kadar bekle
+            }, 600);
         }
         console.log(`[Volume] ham:${Math.round(vol01*100)}% → cubic:${percent}%`);
     }
