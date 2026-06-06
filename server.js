@@ -307,6 +307,50 @@ app.get('/api/radio/resolve', async (req, res) => {
     }
 });
 
+// --- RADYO TEST: Tarayıcıdan doğrudan test et ---
+// Kullanım: /api/radio/test?url=http://radyo-stream-url
+app.get('/api/radio/test', (req, res) => {
+    const url = req.query.url;
+    if (!url) return res.json({ error: 'URL gerekli. Kullanım: /api/radio/test?url=http://...' });
+
+    killAllServerAudio();
+
+    const testProcess = spawn('mpg123', ['-o', 'alsa', '-f', '16000', url]);
+    radioServerProcess = testProcess;
+    const thisRadio = testProcess;
+    let output = [];
+
+    testProcess.stderr.on('data', (d) => {
+        const msg = d.toString().trim();
+        output.push('[stderr] ' + msg);
+        console.log('[Radio Test stderr]', msg);
+    });
+    testProcess.stdout.on('data', (d) => {
+        const msg = d.toString().trim();
+        output.push('[stdout] ' + msg);
+        console.log('[Radio Test stdout]', msg);
+    });
+    testProcess.on('close', (code) => {
+        console.log(`[Radio Test] kapandi (code: ${code})`);
+        if (radioServerProcess === thisRadio) radioServerProcess = null;
+    });
+    testProcess.on('error', (err) => {
+        output.push('[error] ' + err.message);
+        console.error('[Radio Test] hata:', err.message);
+        if (radioServerProcess === thisRadio) radioServerProcess = null;
+    });
+
+    // 3 saniye bekle, sonuçları döndür
+    setTimeout(() => {
+        res.json({
+            status: testProcess.killed ? 'killed' : (testProcess.exitCode !== null ? `exited(${testProcess.exitCode})` : 'running'),
+            pid: testProcess.pid,
+            output: output,
+            message: output.length === 0 ? 'Çıktı yok — muhtemelen çalıyor, hoparlörden ses kontrolü yapın' : undefined
+        });
+    }, 3000);
+});
+
 // --- RADYO SUNUCU OYNATMA ---
 app.post('/api/radio/play-server', (req, res) => {
     const { url, volume } = req.body;

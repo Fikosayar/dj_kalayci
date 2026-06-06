@@ -136,9 +136,20 @@ function initRadio() {
       setStatus(false, '', 'Geçersiz URL'); return;
     }
 
+    // Cihaz modunu tespit et (play çağrılmadan ÖNCE)
+    const serverMode = isServerMode();
+    const deviceId = (window.Player && Player.state) ? Player.state.device : 'unknown';
+    console.log(`[Radio] play() -> device: "${deviceId}", serverMode: ${serverMode}, url: ${url}`);
+
     // Müzik çalıyorsa durdur (player'ı durdur)
     if (window.Player && Player.stopAll) Player.stopAll();
-    stop(); // Önceki radyoyu da temizle
+
+    // Önceki radyoyu temizle (ama stopRadioServer'ı tekrar çağırma — stopAll zaten çağırdı)
+    if (hls) { hls.destroy(); hls = null; }
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+    radioPlaying = false;
 
     currentUrl = url;
     currentStationName = name || url;
@@ -147,16 +158,21 @@ function initRadio() {
     const streamUrl = await resolveStream(url);
     const vol = loadSavedVol();
 
-    if (isServerMode()) {
+    if (serverMode) {
       // ===== SUNUCU MODU: mpg123 ile URL'i çal =====
+      console.log(`[Radio] Sunucu modunda çalınacak: ${streamUrl}, vol: ${vol}`);
       try {
-        await API.playRadioServer(streamUrl, vol);
+        const result = await API.playRadioServer(streamUrl, vol);
+        console.log('[Radio] playRadioServer sonuç:', result);
         setStatus(true, currentStationName, 'Canlı Yayın (Sunucu)');
+        radioPlaying = true;
       } catch(e) {
+        console.error('[Radio] playRadioServer hata:', e);
         setStatus(false, currentStationName, 'Sunucu bağlantı hatası');
       }
     } else {
       // ===== TARAYICI MODU: <audio> elementi =====
+      console.log(`[Radio] Tarayıcı modunda çalınacak: ${streamUrl}, vol: ${vol}`);
       if (streamUrl.includes('.m3u8')) {
         if (!window.Hls) {
           setStatus(false, currentStationName, 'HLS yükleniyor…');
