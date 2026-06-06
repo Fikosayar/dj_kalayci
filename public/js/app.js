@@ -765,6 +765,7 @@ function initSidebarVolume() {
     }
   }
 
+  let _sidebarVolTimer = null;
   function setVol(v) {
     v = Math.max(0, Math.min(1, v));
     if (window.Player && Player.state) {
@@ -773,12 +774,13 @@ function initSidebarVolume() {
       // localStorage'a kaydet
       if (Player.save) Player.save();
     }
-    // Browser audio
+    // Browser audio - anlık güncelle
     const audio = document.getElementById('audio-player');
     if (audio) audio.volume = v;
-    // Server volume
+    // Server volume - debounce ile gönder (drag sırasında spam önle)
     if (window.Player && Player.state && Player.state.device !== 'browser') {
-      API.volumeServer(Math.pow(v, 3));
+      clearTimeout(_sidebarVolTimer);
+      _sidebarVolTimer = setTimeout(() => API.volumeServer(v), 150);
     }
     render();
     // Player'daki volume bar'ları da güncelle
@@ -816,7 +818,7 @@ function initSidebarVolume() {
       const audio = document.getElementById('audio-player');
       if (audio) audio.volume = v;
       if (Player.state.device !== 'browser') {
-        API.volumeServer(Player.state.muted ? 0 : Math.pow(Player.state.volume, 3));
+        API.volumeServer(Player.state.muted ? 0 : Player.state.volume);
       }
     }
     render();

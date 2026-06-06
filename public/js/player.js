@@ -242,7 +242,7 @@ const Player = (() => {
       a.removeAttribute('src');
       a.load();
       if (state.device !== 'browser') {
-        API.volumeServer(state.muted ? 0 : Math.pow(state.volume, 3));
+        API.volumeServer(state.muted ? 0 : state.volume);
         API.playServer(filename);
       }
       state.isPlaying = true;
@@ -346,7 +346,7 @@ const Player = (() => {
     if (el.muteIcon) el.muteIcon.textContent = v === 0 ? "volume_off" : v < 0.5 ? "volume_down" : "volume_up";
     if (audio) audio.volume = v;
     save(); // Her volume değişiminde hemen kaydet — loadstart da localStorage'dan okuyacak
-    if (state.device !== "browser") API.volumeServer(state.muted ? 0 : Math.pow(state.volume, 3));
+    if (state.device !== "browser") API.volumeServer(state.muted ? 0 : state.volume);
 
   }
 
@@ -457,7 +457,7 @@ const Player = (() => {
 
       // Radyo çalıyorsa müzik başlatma — radyo kendi geçişini yapacak
       if (!radioActive && state.current) {
-        API.volumeServer(state.muted ? 0 : Math.pow(state.volume, 3));
+        API.volumeServer(state.muted ? 0 : state.volume);
         API.playServer(state.current).then(() => {
           state.isPlaying = true;
           setPlayIcon();

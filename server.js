@@ -652,25 +652,28 @@ app.post('/api/music/pause-server', (req, res) => {
 
 let _radioVolTimer = null;
 app.post('/api/music/volume-server', (req, res) => {
-    const { volume } = req.body; // 0.0 ile 1.0 arası gelir
+    const { volume } = req.body; // Ham 0.0-1.0 arası (cubic BURADA uygulanir)
     if (volume !== undefined) {
-        const vol01 = Math.max(0, Math.min(1, volume));
-        const percent = Math.round(vol01 * 100);
+        const vol01 = Math.max(0, Math.min(1, volume)); // ham deger
+        const cubic = Math.pow(vol01, 3);               // küpsel eğri
+        // mpg123 V komutu: 0-100 lineer (cubic sonrası)
+        const percent = Math.round(cubic * 100);
         serverPlayerState.lastVolume = percent;
         if (currentServerProcess) {
             currentServerProcess.stdin.write(`V ${percent}\n`);
         }
-        // Radyo caliyorsa: debounce ile restart (her pixel icin degil)
+        // Radyo caliyorsa: debounce ile restart
+        // vol01 (ham) gönder — startRadioStream içinde cubic zaten uygulanıyor
         if (radioServerProcess && radioServerUrl) {
             clearTimeout(_radioVolTimer);
             _radioVolTimer = setTimeout(() => {
                 if (radioServerProcess && radioServerUrl) {
-                    console.log(`[Radio Volume] Restart - vol: ${vol01}`);
+                    console.log(`[Radio Volume] Restart - vol: ${vol01}, cubic: ${cubic.toFixed(4)}, scale: ${Math.round(cubic * 32768)}`);
                     startRadioStream(radioServerUrl, vol01);
                 }
-            }, 400); // 400ms debounce
+            }, 600); // 600ms debounce - slider bitene kadar bekle
         }
-        console.log(`[Volume] ${percent}%`);
+        console.log(`[Volume] ham:${Math.round(vol01*100)}% → cubic:${percent}%`);
     }
     res.json({ success: true });
 });
