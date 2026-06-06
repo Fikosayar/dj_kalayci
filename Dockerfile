@@ -1,7 +1,8 @@
 FROM node:20-bullseye
 
-# Ses çalmak için gerekli paketleri (mpg123, alsa-utils ve pulseaudio) Linux'a kuruyoruz
-RUN apt-get update && apt-get install -y mpg123 alsa-utils pulseaudio && rm -rf /var/lib/apt/lists/*
+# Ses çalmak için gerekli paketleri kuruyoruz
+# curl: mpg123'ün HTTP desteği yok, curl ile stream pipe ediyoruz
+RUN apt-get update && apt-get install -y mpg123 alsa-utils pulseaudio curl && rm -rf /var/lib/apt/lists/*
 
 # ALSA'nın dmix (karıştırıcı) IPC izin hatasını çözmek için herkese açık bir dmix konfigürasyonu yaratıyoruz
 RUN echo 'pcm.!default { type plug; slave.pcm "dmixer" } \n\

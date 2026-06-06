@@ -16,6 +16,10 @@ function killAllServerAudio() {
         currentServerProcess = null;
     }
     if (radioServerProcess) {
+        // curl pipe process'i de durdur
+        if (radioServerProcess._curlProcess) {
+            try { radioServerProcess._curlProcess.kill('SIGKILL'); } catch(e) {}
+        }
         try { radioServerProcess.kill('SIGKILL'); } catch(e) {}
         radioServerProcess = null;
     }
@@ -315,40 +319,46 @@ app.get('/api/radio/test', (req, res) => {
 
     killAllServerAudio();
 
-    const testProcess = spawn('mpg123', ['-o', 'alsa', '-f', '16000', url]);
-    radioServerProcess = testProcess;
-    const thisRadio = testProcess;
+    // curl | mpg123 pipe (mpg123 HTTP destegi yok)
+    const curlProc = spawn('curl', ['-sL', '--no-buffer', url]);
+    const mpg123Proc = spawn('mpg123', ['-o', 'alsa', '-f', '16000', '-']);
+    curlProc.stdout.pipe(mpg123Proc.stdin);
+
+    radioServerProcess = mpg123Proc;
+    radioServerProcess._curlProcess = curlProc;
+    const thisRadio = mpg123Proc;
     let output = [];
 
-    testProcess.stderr.on('data', (d) => {
+    curlProc.stderr.on('data', (d) => {
         const msg = d.toString().trim();
-        output.push('[stderr] ' + msg);
-        console.log('[Radio Test stderr]', msg);
+        if (msg) { output.push('[curl stderr] ' + msg); console.log('[Radio Test curl]', msg); }
     });
-    testProcess.stdout.on('data', (d) => {
+    curlProc.on('close', (code) => output.push(`[curl closed] code: ${code}`));
+
+    mpg123Proc.stderr.on('data', (d) => {
         const msg = d.toString().trim();
-        output.push('[stdout] ' + msg);
-        console.log('[Radio Test stdout]', msg);
+        output.push('[mpg123 stderr] ' + msg);
+        console.log('[Radio Test mpg123]', msg);
     });
-    testProcess.on('close', (code) => {
-        console.log(`[Radio Test] kapandi (code: ${code})`);
+    mpg123Proc.on('close', (code) => {
+        console.log(`[Radio Test] mpg123 kapandi (code: ${code})`);
+        output.push(`[mpg123 closed] code: ${code}`);
         if (radioServerProcess === thisRadio) radioServerProcess = null;
     });
-    testProcess.on('error', (err) => {
-        output.push('[error] ' + err.message);
-        console.error('[Radio Test] hata:', err.message);
-        if (radioServerProcess === thisRadio) radioServerProcess = null;
+    mpg123Proc.on('error', (err) => {
+        output.push('[mpg123 error] ' + err.message);
     });
 
-    // 3 saniye bekle, sonuçları döndür
+    // 4 saniye bekle, sonuçları döndür
     setTimeout(() => {
         res.json({
-            status: testProcess.killed ? 'killed' : (testProcess.exitCode !== null ? `exited(${testProcess.exitCode})` : 'running'),
-            pid: testProcess.pid,
+            status: mpg123Proc.killed ? 'killed' : (mpg123Proc.exitCode !== null ? `exited(${mpg123Proc.exitCode})` : 'running'),
+            curlPid: curlProc.pid,
+            mpg123Pid: mpg123Proc.pid,
             output: output,
-            message: output.length === 0 ? 'Çıktı yok — muhtemelen çalıyor, hoparlörden ses kontrolü yapın' : undefined
+            message: mpg123Proc.exitCode === null ? 'Çalışıyor — hoparlörden ses kontrolü yapın' : undefined
         });
-    }, 3000);
+    }, 4000);
 });
 
 // --- RADYO SUNUCU OYNATMA ---
@@ -358,34 +368,56 @@ app.post('/api/radio/play-server', (req, res) => {
 
     console.log(`[Radio] Istek alindi - URL: ${url}, Volume: ${volume}`);
 
-    // Her iki server audio'yu durdur (cakisma onleme)
+    // Her iki server audio'yu durdur
     killAllServerAudio();
 
-    // Ses seviyesi: volume 0-1 arasi gelir, -f parametresi 0-32768 arasi
+    // Ses seviyesi: volume 0-1 arasi, -f parametresi 0-32768 arasi
     const vol = volume !== undefined ? Math.max(0, Math.min(1, volume)) : 0.7;
     const scale = Math.round(Math.pow(vol, 3) * 32768);
     const finalScale = Math.max(100, scale);
 
-    // mpg123 dogrudan URL ile baslat - -R modunun URL sorunlari atlanir
-    radioServerProcess = spawn('mpg123', ['-o', 'alsa', '-f', String(finalScale), url]);
-    const thisRadio = radioServerProcess;
+    // mpg123 1.26.4 (Debian) HTTP/HTTPS destegi YOK - URL'leri dosya olarak aciyor
+    // Cozum: curl ile stream'i indirip pipe ile mpg123'e aktar
+    // curl -sL = sessiz + redirect takip, mpg123 - = stdin'den oku
+    const curlProcess = spawn('curl', ['-sL', '--no-buffer', url]);
+    const mpg123Process = spawn('mpg123', ['-o', 'alsa', '-f', String(finalScale), '-']);
 
-    console.log(`[Radio] mpg123 baslatildi - scale: ${finalScale}, PID: ${radioServerProcess.pid}`);
+    // curl stdout -> mpg123 stdin pipe
+    curlProcess.stdout.pipe(mpg123Process.stdin);
 
-    radioServerProcess.stdout.on('data', (data) => {
-        const msg = data.toString().trim();
-        if (msg) console.log('[Radio stdout]', msg);
+    // radioServerProcess olarak mpg123'u tut (ses kontrolu icin)
+    // ama curl referansini da sakla (durdurmak icin)
+    radioServerProcess = mpg123Process;
+    radioServerProcess._curlProcess = curlProcess;
+    const thisRadio = mpg123Process;
+
+    console.log(`[Radio] curl|mpg123 baslatildi - scale: ${finalScale}, curl PID: ${curlProcess.pid}, mpg123 PID: ${mpg123Process.pid}`);
+
+    curlProcess.stderr.on('data', (d) => {
+        const msg = d.toString().trim();
+        if (msg) console.log('[Radio curl stderr]', msg);
     });
-    radioServerProcess.stderr.on('data', (data) => {
-        const msg = data.toString().trim();
-        if (msg) console.log('[Radio stderr]', msg);
+    curlProcess.on('error', (err) => {
+        console.error('[Radio curl hata]', err.message);
     });
-    radioServerProcess.on('close', (code) => {
+    curlProcess.on('close', (code) => {
+        console.log(`[Radio] curl kapandi (code: ${code})`);
+    });
+
+    mpg123Process.stderr.on('data', (d) => {
+        const msg = d.toString().trim();
+        if (msg) console.log('[Radio mpg123 stderr]', msg);
+    });
+    mpg123Process.stdout.on('data', (d) => {
+        const msg = d.toString().trim();
+        if (msg) console.log('[Radio mpg123 stdout]', msg);
+    });
+    mpg123Process.on('close', (code) => {
         console.log(`[Radio] mpg123 kapandi (code: ${code})`);
         if (radioServerProcess === thisRadio) radioServerProcess = null;
     });
-    radioServerProcess.on('error', (err) => {
-        console.error('[Radio] mpg123 spawn hatasi:', err.message);
+    mpg123Process.on('error', (err) => {
+        console.error('[Radio mpg123 hata]', err.message);
         if (radioServerProcess === thisRadio) radioServerProcess = null;
     });
 
@@ -394,6 +426,10 @@ app.post('/api/radio/play-server', (req, res) => {
 
 app.post('/api/radio/stop-server', (req, res) => {
     if (radioServerProcess) {
+        // curl process'i de durdur (pipe)
+        if (radioServerProcess._curlProcess) {
+            try { radioServerProcess._curlProcess.kill('SIGKILL'); } catch(e) {}
+        }
         try { radioServerProcess.kill('SIGKILL'); } catch(e) {}
         radioServerProcess = null;
     }

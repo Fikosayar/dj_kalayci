@@ -483,3 +483,7 @@ const Player = (() => {
 
   return { init, playMusic, setDevice, stopAll, state };
 })();
+
+// const ile tanımlanan değişkenler window'a eklenmez.
+// Radyo ve diğer modüller window.Player üzerinden erişir — bu satır şart.
+window.Player = Player;
