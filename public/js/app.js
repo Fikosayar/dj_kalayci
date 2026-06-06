@@ -250,6 +250,120 @@ function initRadio() {
       play(url, name);
     });
   });
+
+  // ===================== KAYITLI İSTASYONLAR =====================
+  const STATIONS_KEY = 'dj_saved_stations';
+
+  function loadStations() {
+    try { return JSON.parse(localStorage.getItem(STATIONS_KEY) || '[]'); } catch { return []; }
+  }
+  function saveStations(list) {
+    localStorage.setItem(STATIONS_KEY, JSON.stringify(list));
+  }
+
+  function renderStations() {
+    const list     = document.getElementById('saved-stations-list');
+    const empty    = document.getElementById('saved-stations-empty');
+    if (!list) return;
+
+    const stations = loadStations();
+    list.innerHTML = '';
+
+    if (stations.length === 0) {
+      if (empty) empty.style.display = 'flex';
+      return;
+    }
+    if (empty) empty.style.display = 'none';
+
+    stations.forEach((st, idx) => {
+      const card = document.createElement('div');
+      card.className = 'saved-station-card' + (radioPlaying && currentUrl === st.url ? ' active' : '');
+      card.innerHTML = `
+        <div class="ssc-icon"><span class="material-symbols-rounded">radio</span></div>
+        <div class="ssc-info">
+          <div class="ssc-name">${st.name}</div>
+          <div class="ssc-url">${st.url}</div>
+        </div>
+        <span class="material-symbols-rounded ssc-play-icon">${radioPlaying && currentUrl === st.url ? 'pause' : 'play_arrow'}</span>
+        <button class="ssc-delete" title="Sil" data-idx="${idx}">
+          <span class="material-symbols-rounded">delete</span>
+        </button>`;
+
+      // Karta tıklayınca çal (sil butonuna değilse)
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.ssc-delete')) return;
+        if (radioPlaying && currentUrl === st.url) { stop(); renderStations(); return; }
+        if (urlInput) urlInput.value = st.url;
+        play(st.url, st.name).then(() => renderStations());
+      });
+
+      // Sil butonu
+      card.querySelector('.ssc-delete').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const stations2 = loadStations();
+        stations2.splice(idx, 1);
+        saveStations(stations2);
+        renderStations();
+      });
+
+      list.appendChild(card);
+    });
+  }
+
+  // "+" butonu — formu aç/kapat
+  const btnAdd    = document.getElementById('btn-add-station');
+  const addForm   = document.getElementById('station-add-form');
+  const btnSave   = document.getElementById('btn-station-save');
+  const btnCancel = document.getElementById('btn-station-cancel');
+  const nameInp   = document.getElementById('station-name-input');
+  const stUrlInp  = document.getElementById('station-url-input');
+
+  if (btnAdd && addForm) {
+    btnAdd.addEventListener('click', () => {
+      const open = addForm.style.display !== 'none';
+      addForm.style.display = open ? 'none' : 'block';
+      if (!open) {
+        // Formu açarken URL alanına mevcut URL'i kopyala
+        if (urlInput && urlInput.value.trim()) stUrlInp.value = urlInput.value.trim();
+        nameInp.focus();
+      }
+    });
+  }
+
+  if (btnCancel) {
+    btnCancel.addEventListener('click', () => {
+      addForm.style.display = 'none';
+      nameInp.value = ''; stUrlInp.value = '';
+    });
+  }
+
+  if (btnSave) {
+    btnSave.addEventListener('click', () => {
+      const name = nameInp.value.trim();
+      const url  = stUrlInp.value.trim();
+      if (!name) { nameInp.focus(); nameInp.style.outline = '2px solid #f87171'; setTimeout(() => nameInp.style.outline = '', 1200); return; }
+      if (!url || !url.startsWith('http')) { stUrlInp.focus(); stUrlInp.style.outline = '2px solid #f87171'; setTimeout(() => stUrlInp.style.outline = '', 1200); return; }
+
+      // Aynı URL varsa güncelle, yoksa ekle
+      const stations = loadStations();
+      const existing = stations.findIndex(s => s.url === url);
+      if (existing >= 0) { stations[existing].name = name; }
+      else { stations.push({ name, url }); }
+      saveStations(stations);
+
+      nameInp.value = ''; stUrlInp.value = '';
+      addForm.style.display = 'none';
+      renderStations();
+    });
+  }
+
+  // Enter tuşu ile kaydet
+  [nameInp, stUrlInp].forEach(inp => {
+    inp?.addEventListener('keydown', e => { if (e.key === 'Enter') btnSave?.click(); });
+  });
+
+  // İlk render
+  renderStations();
 }
 
 /* ---------------- Library ---------------- */

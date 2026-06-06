@@ -298,6 +298,50 @@
           <p class="radio-url-hint">MP3 stream, AAC, HLS (.m3u8) ve PLS/M3U playlist URL’leri desteklenir.</p>
         </div>
 
+        <!-- Kayıtlı İstasyonlarım -->
+        <div class="radio-saved-section" id="radio-saved-section">
+          <div class="radio-saved-header">
+            <div class="radio-saved-title">
+              <span class="material-symbols-rounded">bookmarks</span>
+              Kayıtlı İstasyonlarım
+            </div>
+            <button class="btn-add-station" id="btn-add-station" title="Yeni istasyon ekle">
+              <span class="material-symbols-rounded">add</span>
+            </button>
+          </div>
+
+          <!-- Ekleme formu (başta gizli) -->
+          <div class="station-add-form" id="station-add-form" style="display:none">
+            <div class="station-form-row">
+              <div class="station-form-field">
+                <span class="material-symbols-rounded">label</span>
+                <input type="text" id="station-name-input" placeholder="İstasyon adı (örn: Fenomen Dans)" maxlength="40">
+              </div>
+              <div class="station-form-field">
+                <span class="material-symbols-rounded">link</span>
+                <input type="url" id="station-url-input" placeholder="Stream URL (http://... .mp3 / .m3u8)">
+              </div>
+              <div class="station-form-actions">
+                <button class="btn-station-save" id="btn-station-save">
+                  <span class="material-symbols-rounded">save</span> Kaydet
+                </button>
+                <button class="btn-station-cancel" id="btn-station-cancel">
+                  <span class="material-symbols-rounded">close</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Kayıtlı istasyonlar listesi -->
+          <div class="saved-stations-list" id="saved-stations-list">
+            <!-- JS tarafından doldurulur -->
+          </div>
+          <div class="saved-stations-empty" id="saved-stations-empty" style="display:none">
+            <span class="material-symbols-rounded">bookmark_add</span>
+            <span>Henüz kayıtlı istasyon yok.<br>URL girerek + butonuyla ekleyin.</span>
+          </div>
+        </div>
+
         <!-- Hazır radyolar -->
         <div class="radio-presets-title">Hazır Radyolar</div>
         <div class="radio-presets" id="radio-presets">
