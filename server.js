@@ -281,7 +281,8 @@ let serverPlayerState = {
     isPlaying: false,
     currentSec: 0,
     totalSec: 0,
-    totalFrames: 0
+    totalFrames: 0,
+    lastVolume: 70  // mpg123 percent (0-100), default %70
 };
 
 // --- ANTİ-BUZZ (Cızlama Engelleyici) ---
@@ -351,6 +352,11 @@ app.post('/api/music/play-server', (req, res) => {
 
     // Müziği yükle ve çal komutu
     currentServerProcess.stdin.write(`L ${filePath}\n`);
+
+    // Hemen ses seviyesini uygula (mpg123 varsayılan %100 ile başlatır)
+    const savedVol = serverPlayerState.lastVolume ?? 100;
+    currentServerProcess.stdin.write(`V ${savedVol}\n`);
+
     res.json({ success: true, message: 'Sunucuda çalınmaya başlandı.' });
 });
 
@@ -373,9 +379,12 @@ app.post('/api/music/pause-server', (req, res) => {
 
 app.post('/api/music/volume-server', (req, res) => {
     const { volume } = req.body; // 0.0 ile 1.0 arası gelir
-    if (currentServerProcess && volume !== undefined) {
+    if (volume !== undefined) {
         const percent = Math.round(volume * 100);
-        currentServerProcess.stdin.write(`V ${percent}\n`);
+        serverPlayerState.lastVolume = percent; // Bir sonraki playServer için kaydet
+        if (currentServerProcess) {
+            currentServerProcess.stdin.write(`V ${percent}\n`);
+        }
     }
     res.json({ success: true });
 });

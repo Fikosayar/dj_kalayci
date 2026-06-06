@@ -229,7 +229,11 @@ const Player = (() => {
       stopVirtual();
     } else {
       if (audio) audio.pause();
-      if (state.device !== "browser") API.playServer(filename);
+      if (state.device !== "browser") {
+        // Önce ses seviyesini gönder, sonra çal — mpg123 %100 ile başlamasın
+        API.volumeServer(state.muted ? 0 : Math.pow(state.volume, 3));
+        API.playServer(filename);
+      }
       state.isPlaying = true;
       setPlayIcon();
       startVirtual();
