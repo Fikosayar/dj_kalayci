@@ -241,7 +241,7 @@ const Player = (() => {
       a.removeAttribute('src');
       a.load();
       if (state.device !== 'browser') {
-        API.volumeServer(state.muted ? 0 : state.volume);
+        API.volumeServer(state.muted ? 0 : Math.pow(state.volume, 3));
         API.playServer(filename);
       }
       state.isPlaying = true;
@@ -345,7 +345,7 @@ const Player = (() => {
     if (el.muteIcon) el.muteIcon.textContent = v === 0 ? "volume_off" : v < 0.5 ? "volume_down" : "volume_up";
     if (audio) audio.volume = v;
     save(); // Her volume değişiminde hemen kaydet — loadstart da localStorage'dan okuyacak
-    if (state.device !== "browser") API.volumeServer(state.muted ? 0 : state.volume);
+    if (state.device !== "browser") API.volumeServer(state.muted ? 0 : Math.pow(state.volume, 3));
 
   }
 
@@ -449,7 +449,7 @@ const Player = (() => {
       a.load(); // Tamamen sıfırla
       if (state.current) {
         // Cihaz değişince her zaman yeniden çal (wasPlaying olmasa bile)
-        API.volumeServer(state.muted ? 0 : state.volume);
+        API.volumeServer(state.muted ? 0 : Math.pow(state.volume, 3));
 
         API.playServer(state.current).then(() => {
           state.isPlaying = true;

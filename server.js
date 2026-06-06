@@ -315,26 +315,44 @@ app.post('/api/radio/play-server', (req, res) => {
     // Her iki server audio'yu durdur (çakışma önleme)
     killAllServerAudio();
 
-    const { spawn } = require('child_process');
-    const vol = volume !== undefined ? Math.round(volume * 100) : 70;
-
-    // mpg123 doğrudan URL'i çalabilir, -R moduna gerek yok stream için
-    radioServerProcess = spawn('mpg123', ['--scale', String(vol * 327), '-o', 'alsa', url]);
+    // mpg123 Remote Control (-R) modunda başlat — müzik player ile aynı yöntem
+    // -R modunda URL'ler de destekleniyor: "L http://..." komutu ile
+    radioServerProcess = spawn('mpg123', ['-R', '-o', 'alsa']);
 
     radioServerProcess.stderr.on('data', (data) => {
-        const msg = data.toString();
-        if (!msg.includes('High Performance') && !msg.includes('MPEG')) {
-            console.log('[Radio]', msg.trim());
+        const msg = data.toString().trim();
+        if (msg && !msg.includes('High Performance') && !msg.includes('MPEG AUDIO')) {
+            console.log('[Radio stderr]', msg);
         }
+    });
+    radioServerProcess.stdout.on('data', (data) => {
+        const msg = data.toString().trim();
+        if (msg) console.log('[Radio stdout]', msg);
     });
     radioServerProcess.on('close', (code) => {
         console.log(`[Radio] mpg123 kapandı (code: ${code})`);
         radioServerProcess = null;
     });
     radioServerProcess.on('error', (err) => {
-        console.error('[Radio] mpg123 hatası:', err.message);
+        console.error('[Radio] mpg123 hata:', err.message);
         radioServerProcess = null;
     });
+
+    // URL'i yükle ve çal — mpg123 -R modu HTTP URL'leri destekler
+    setTimeout(() => {
+        if (!radioServerProcess) return;
+        try {
+            radioServerProcess.stdin.write(`L ${url}\n`);
+            // Ses seviyesi: volume 0-1 arası gelir, küpsel eğri uygula (player ile uyumlu)
+            const vol = volume !== undefined ? volume : (serverPlayerState.lastVolume / 100);
+            const percent = Math.round(Math.pow(Math.max(0, Math.min(1, vol)), 3) * 100);
+            const finalVol = Math.max(1, percent); // En az 1% — tam sıfır değil
+            radioServerProcess.stdin.write(`V ${finalVol}\n`);
+            console.log(`[Radio] URL yüklendi: ${url}, Volume: ${finalVol}`);
+        } catch (e) {
+            console.error('[Radio] stdin yazma hatası:', e.message);
+        }
+    }, 300); // mpg123'ün başlaması için 300ms bekle
 
     res.json({ success: true, message: 'Radyo sunucuda çalınıyor.' });
 });
