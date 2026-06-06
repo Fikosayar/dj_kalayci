@@ -125,8 +125,10 @@ function initRadio() {
     currentUrl = '';
   }
 
-  // Global referans — player.js müzik başlatırken radyoyu durdurabilsin
+  // Global referanslar — player.js radyo durumunu sorgulayabilsin
   window.__radioStop = stop;
+  window.__radioIsPlaying = () => radioPlaying;
+  window.__radioCurrentUrl = () => currentUrl;
 
   // --- Oynat ---
   async function play(url, name) {

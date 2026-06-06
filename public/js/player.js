@@ -60,10 +60,11 @@ const Player = (() => {
 
   const hasRealAudio = () => !API.isDemo && state.device === "browser";
 
+  // Hemen restore et — device modunu radyo ve diğer modüller init() öncesi de görebilsin
+  restore();
+
   // ---------------- init ----------------
-  let restored = false;
   function init() {
-    if (!restored) { restore(); restored = true; }
     el = {
       audio: document.getElementById("audio-player"),
       cover: document.getElementById("cover-art-img"),
@@ -425,20 +426,25 @@ const Player = (() => {
     state.device = id;
     save();
 
+    // Radyo çalıyor mu? (radio modülü global flag kullanır)
+    const radioActive = window.__radioIsPlaying && window.__radioIsPlaying();
+
     if (id === "browser") {
       // Sunucuyu durdur, tarayıcıya geç
       API.stopServer();
       API.stopRadioServer();
       stopVirtual();
-      const a = getAudio();
-      if (state.current && !API.isDemo) {
+
+      // Radyo çalıyorsa müzik player'ı karıştırma — radyo kendi switch'ini yapacak
+      if (!radioActive && state.current && !API.isDemo) {
+        const a = getAudio();
         a.src = API.streamURL(state.current);
         a.volume = state.muted ? 0 : state.volume;
         a.currentTime = state.time || 0;
         if (wasPlaying) {
           a.play().catch(() => {});
         }
-      } else if (wasPlaying) {
+      } else if (!radioActive && wasPlaying) {
         startVirtual();
       }
     } else {
@@ -446,11 +452,12 @@ const Player = (() => {
       const a = getAudio();
       a.pause();
       a.removeAttribute('src');
-      a.load(); // Tamamen sıfırla
-      if (state.current) {
-        // Cihaz değişince her zaman yeniden çal (wasPlaying olmasa bile)
-        API.volumeServer(state.muted ? 0 : Math.pow(state.volume, 3));
+      a.load();
+      stopVirtual();
 
+      // Radyo çalıyorsa müzik başlatma — radyo kendi geçişini yapacak
+      if (!radioActive && state.current) {
+        API.volumeServer(state.muted ? 0 : Math.pow(state.volume, 3));
         API.playServer(state.current).then(() => {
           state.isPlaying = true;
           setPlayIcon();

@@ -318,6 +318,7 @@ app.post('/api/radio/play-server', (req, res) => {
     // mpg123 Remote Control (-R) modunda başlat — müzik player ile aynı yöntem
     // -R modunda URL'ler de destekleniyor: "L http://..." komutu ile
     radioServerProcess = spawn('mpg123', ['-R', '-o', 'alsa']);
+    const thisRadio = radioServerProcess;
 
     radioServerProcess.stderr.on('data', (data) => {
         const msg = data.toString().trim();
@@ -331,11 +332,11 @@ app.post('/api/radio/play-server', (req, res) => {
     });
     radioServerProcess.on('close', (code) => {
         console.log(`[Radio] mpg123 kapandı (code: ${code})`);
-        radioServerProcess = null;
+        if (radioServerProcess === thisRadio) radioServerProcess = null;
     });
     radioServerProcess.on('error', (err) => {
         console.error('[Radio] mpg123 hata:', err.message);
-        radioServerProcess = null;
+        if (radioServerProcess === thisRadio) radioServerProcess = null;
     });
 
     // URL'i yükle ve çal — mpg123 -R modu HTTP URL'leri destekler
@@ -508,18 +509,26 @@ app.post('/api/music/play-server', (req, res) => {
     // mpg123'ü "Remote Control" (-R) modunda başlatıyoruz ki komut gönderebilelim
     currentServerProcess = spawn('mpg123', ['-R', '-o', 'alsa']);
     
+    // Process referansı kaydet — close handler için race condition önleme
+    const thisProcess = currentServerProcess;
+
     currentServerProcess.stderr.on('data', (data) => {
         console.log('[mpg123 stderr]', data.toString().trim());
     });
     currentServerProcess.on('error', (err) => {
         console.error('[mpg123 spawn error]', err.message);
-        currentServerProcess = null;
-        serverPlayerState.isPlaying = false;
+        if (currentServerProcess === thisProcess) {
+            currentServerProcess = null;
+            serverPlayerState.isPlaying = false;
+        }
     });
     currentServerProcess.on('close', (code) => {
         console.log(`[mpg123 closed] code: ${code}`);
-        currentServerProcess = null;
-        serverPlayerState.isPlaying = false;
+        // Sadece HALA bizim process ise null yap — yeni process'i silmeyelim
+        if (currentServerProcess === thisProcess) {
+            currentServerProcess = null;
+            serverPlayerState.isPlaying = false;
+        }
     });
 
     // İlerleme Çubuğu İçin Standart Çıktıyı Dinleme
