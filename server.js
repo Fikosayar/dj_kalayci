@@ -9,6 +9,15 @@ let currentServerProcess = null; // Sunucuda çalan müziğin process kaydı
 let radioServerProcess   = null; // Sunucuda çalan radyo stream process kaydı
 let radioServerUrl       = null; // Şu an çalan radyo URL'i (volume restart için)
 
+// Pipe hataları Node.js'i çökertmesin
+process.on('uncaughtException', (err) => {
+    if (err.code === 'EPIPE' || err.code === 'ERR_STREAM_DESTROYED' || err.code === 'ERR_STREAM_WRITE_AFTER_END') {
+        console.log('[Process] Pipe hatası yakalandı (crash önlendi):', err.code);
+        return; // Çökme, devam et
+    }
+    console.error('[Process] Yakalanmamış hata:', err);
+});
+
 // Yardımcı: her iki process'i de durdur
 function killAllServerAudio() {
     if (currentServerProcess) {
@@ -17,12 +26,18 @@ function killAllServerAudio() {
         currentServerProcess = null;
     }
     if (radioServerProcess) {
-        // curl pipe process'i de durdur
-        if (radioServerProcess._curlProcess) {
-            try { radioServerProcess._curlProcess.kill('SIGKILL'); } catch(e) {}
-        }
-        try { radioServerProcess.kill('SIGKILL'); } catch(e) {}
+        const curl = radioServerProcess._curlProcess;
+        const mpg = radioServerProcess;
         radioServerProcess = null;
+
+        // Önce pipe'ı kopar, sonra stream'leri yok et, sonra kill
+        if (curl) {
+            try { curl.stdout.unpipe(); } catch(e) {}
+            try { curl.stdout.destroy(); } catch(e) {}
+            try { curl.kill('SIGKILL'); } catch(e) {}
+        }
+        try { mpg.stdin.destroy(); } catch(e) {}
+        try { mpg.kill('SIGKILL'); } catch(e) {}
     }
 }
 
@@ -323,7 +338,9 @@ app.get('/api/radio/test', (req, res) => {
     // curl | mpg123 pipe (mpg123 HTTP destegi yok)
     const curlProc = spawn('curl', ['-sL', '--no-buffer', url]);
     const mpg123Proc = spawn('mpg123', ['-o', 'alsa', '-f', '16000', '-']);
-    curlProc.stdout.pipe(mpg123Proc.stdin);
+    curlProc.stdout.on('error', (e) => { if (e.code !== 'EPIPE') console.log('[Radio Test pipe err]', e.code); });
+    mpg123Proc.stdin.on('error', (e) => { if (e.code !== 'EPIPE' && e.code !== 'ERR_STREAM_DESTROYED') console.log('[Radio Test stdin err]', e.code); });
+    curlProc.stdout.pipe(mpg123Proc.stdin, { end: false });
 
     radioServerProcess = mpg123Proc;
     radioServerProcess._curlProcess = curlProc;
@@ -373,7 +390,12 @@ function startRadioStream(url, vol01) {
 
     const curlProcess = spawn('curl', ['-sL', '--no-buffer', url]);
     const mpg123Process = spawn('mpg123', ['-o', 'alsa', '-f', String(finalScale), '-']);
-    curlProcess.stdout.pipe(mpg123Process.stdin);
+
+    // pipe: end:false = curl kapanınca mpg123 stdin'i otomatik kapatma
+    // Error handler: EPIPE vs craşı önle
+    curlProcess.stdout.on('error', (e) => { if (e.code !== 'EPIPE') console.log('[Radio curl pipe err]', e.code); });
+    mpg123Process.stdin.on('error', (e) => { if (e.code !== 'EPIPE' && e.code !== 'ERR_STREAM_DESTROYED') console.log('[Radio mpg123 stdin err]', e.code); });
+    curlProcess.stdout.pipe(mpg123Process.stdin, { end: false });
 
     radioServerProcess = mpg123Process;
     radioServerProcess._curlProcess = curlProcess;
