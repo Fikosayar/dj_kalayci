@@ -213,6 +213,9 @@ const Player = (() => {
     markRow();
     showMini();
 
+    // Radyo çalıyorsa durdur (çakışma önleme)
+    if (window.__radioStop) window.__radioStop();
+
     if (hasRealAudio()) {
       API.stopServer();
       const targetVol = state.muted ? 0 : state.volume;
@@ -410,25 +413,48 @@ const Player = (() => {
   // cihaz değişimi (app.js modal'dan çağırır)
   function setDevice(id) {
     const wasPlaying = state.isPlaying;
-    state.device = id; save();
-    if (!state.current) return;
+    state.device = id;
+    save();
+
     if (id === "browser") {
+      // Sunucuyu durdur, tarayıcıya geç
       API.stopServer();
-      if (hasRealAudio()) {
-        stopVirtual();
+      stopVirtual();
+      if (state.current && !API.isDemo) {
         audio.src = API.streamURL(state.current);
+        audio.volume = state.muted ? 0 : state.volume;
         audio.currentTime = state.time || 0;
-        if (wasPlaying) audio.play().catch(()=>{});
-      } else { // demo browser → virtual
-        if (wasPlaying) startVirtual();
+        if (wasPlaying) {
+          audio.play().catch(() => {});
+        }
+      } else if (wasPlaying) {
+        startVirtual();
       }
     } else {
-      if (audio) audio.pause();
+      // Tarayıcıyı durdur, sunucuya geç
+      if (audio) { audio.pause(); audio.removeAttribute('src'); }
       stopVirtual();
-      if (wasPlaying) { API.playServer(state.current); state.isPlaying = true; startVirtual(); }
+      if (state.current) {
+        // Cihaz değişince her zaman yeniden çal (wasPlaying olmasa bile)
+        API.volumeServer(state.muted ? 0 : Math.pow(state.volume, 3));
+        API.playServer(state.current).then(() => {
+          state.isPlaying = true;
+          setPlayIcon();
+          startVirtual();
+        });
+      }
     }
     setPlayIcon();
   }
 
-  return { init, playMusic, setDevice, state };
+  // Diğer modüller radyo/player çakışmasını önlemek için kullanabilir
+  function stopAll() {
+    if (audio) { audio.pause(); }
+    stopVirtual();
+    API.stopServer();
+    state.isPlaying = false;
+    setPlayIcon();
+  }
+
+  return { init, playMusic, setDevice, stopAll, state };
 })();

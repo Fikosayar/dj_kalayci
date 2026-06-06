@@ -114,6 +114,9 @@ function initRadio() {
       return;
     }
 
+    // Player'ı tamamen durdur (çakışma önleme)
+    if (window.Player && Player.stopAll) Player.stopAll();
+
     // Önce durdur
     stop();
 
@@ -161,7 +164,12 @@ function initRadio() {
     audio.removeAttribute('src');
     audio.load();
     setStatus(false, currentStationName || '', 'Durdu');
+    radioPlaying = false;
+    currentUrl = '';
   }
+
+  // Global referans — player.js müzik başlatırken radyoyu durdurabilsin
+  window.__radioStop = stop;
 
   function loadScript(src) {
     return new Promise((res, rej) => {
