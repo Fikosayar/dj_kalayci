@@ -265,6 +265,68 @@ app.get('/api/music/cover/:filename', async (req, res) => {
     }
 });
 
+// --- KÜTÜPHANE: Tüm dosyalar + boyut bilgisi ---
+app.get('/api/library', (req, res) => {
+    const config = getConfig();
+    const uploadPath = config.uploadPath;
+    const page  = parseInt(req.query.page)  || 1;
+    const limit = parseInt(req.query.limit) || 30;
+    const search = (req.query.search || '').toLowerCase();
+
+    try {
+        if (!fs.existsSync(uploadPath)) {
+            return res.json({ files: [], total: 0, totalPages: 0, current: page, totalSize: 0 });
+        }
+
+        const allFiles = fs.readdirSync(uploadPath)
+            .filter(f => /\.(mp3|wav|flac|ogg|aac|m4a)$/i.test(f))
+            .filter(f => !search || f.toLowerCase().includes(search))
+            .sort((a, b) => a.localeCompare(b, 'tr'));
+
+        const totalSize = allFiles.reduce((sum, f) => {
+            try { return sum + fs.statSync(path.join(uploadPath, f)).size; } catch { return sum; }
+        }, 0);
+
+        const totalPages = Math.max(1, Math.ceil(allFiles.length / limit));
+        const pageFiles  = allFiles.slice((page - 1) * limit, page * limit);
+
+        const files = pageFiles.map(f => {
+            let size = 0;
+            try { size = fs.statSync(path.join(uploadPath, f)).size; } catch {}
+            return { name: f, size };
+        });
+
+        res.json({ files, total: allFiles.length, totalPages, current: page, totalSize });
+    } catch (err) {
+        res.status(500).json({ error: 'Kütüphane okunamadı' });
+    }
+});
+
+// --- DOSYA SİL ---
+app.delete('/api/music/:filename', (req, res) => {
+    const config = getConfig();
+    const filename = decodeURIComponent(req.params.filename);
+
+    // Güvenlik: path traversal engelle
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+        return res.status(400).json({ error: 'Geçersiz dosya adı' });
+    }
+
+    const filePath = path.join(config.uploadPath, filename);
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'Dosya bulunamadı' });
+    }
+
+    try {
+        fs.unlinkSync(filePath);
+        console.log(`Silindi: ${filename}`);
+        res.json({ success: true, message: `${filename} silindi.` });
+    } catch (err) {
+        console.error('Silme hatası:', err);
+        res.status(500).json({ error: 'Dosya silinemedi' });
+    }
+});
+
 // --- SES CİHAZLARI VE SUNUCU UZAKTAN KUMANDA API'LERİ ---
 
 app.get('/api/devices', (req, res) => {

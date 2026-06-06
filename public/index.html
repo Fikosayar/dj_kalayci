@@ -35,6 +35,7 @@
         <li data-target="home" class="active"><span class="material-symbols-rounded">home</span>Ana Sayfa</li>
         <li data-target="upload"><span class="material-symbols-rounded">cloud_upload</span>Müzik Yükle</li>
         <li data-target="player"><span class="material-symbols-rounded">play_circle</span>Oynatıcı</li>
+        <li data-target="library"><span class="material-symbols-rounded">library_music</span>Kütüphane</li>
       </ul>
 
       <div class="sidebar-bottom">
@@ -210,6 +211,45 @@
     </div>
   </template>
 
+  <!-- ===================== SCREEN: LIBRARY ===================== -->
+  <template id="screen-library">
+    <div class="screen fade-in">
+      <div class="library-wrap">
+
+        <div class="library-header">
+          <div>
+            <h2 class="library-title">Kütüphane</h2>
+            <p class="library-sub">Yüklenen müzikleri görüntüle ve yönet</p>
+          </div>
+          <div class="library-search-wrap">
+            <span class="material-symbols-rounded">search</span>
+            <input type="text" id="lib-search" placeholder="Ara…" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="library-stats" id="lib-stats">
+          <span id="lib-count">— parça</span>
+          <span id="lib-size">—</span>
+        </div>
+
+        <div id="lib-list" class="lib-list">
+          <div class="lib-loading">
+            <span class="material-symbols-rounded spin">progress_activity</span>
+            Yükleniyor…
+          </div>
+        </div>
+
+        <div class="lib-pagination">
+          <button class="btn" id="lib-prev">&#8592; Önceki</button>
+          <span id="lib-page-ind">1 / 1</span>
+          <button class="btn" id="lib-next">Sonraki &#8594;</button>
+        </div>
+
+      </div>
+    </div>
+  </template>
+
+  <!-- ===================== SCREEN: SETTINGS ===================== -->
   <template id="screen-settings">
     <div class="screen fade-in">
       <div class="settings">
@@ -405,6 +445,10 @@ volumes:
     <button class="mobile-nav-item" data-target="player">
       <span class="material-symbols-rounded">play_circle</span>
       Oynatıcı
+    </button>
+    <button class="mobile-nav-item" data-target="library">
+      <span class="material-symbols-rounded">library_music</span>
+      Kütüphane
     </button>
     <button class="mobile-nav-item" data-target="upload">
       <span class="material-symbols-rounded">cloud_upload</span>

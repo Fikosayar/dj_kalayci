@@ -3,7 +3,7 @@
    cihaz modalı, yön (A/B) anahtarı, başlatma.
    ========================================================= */
 
-const SCREEN_TITLES = { home: "Ana Sayfa", upload: "Müzik Yükle", player: "Oynatıcı", settings: "Ayarlar" };
+const SCREEN_TITLES = { home: "Ana Sayfa", upload: "Müzik Yükle", player: "Oynatıcı", settings: "Ayarlar", library: "Kütüphane" };
 
 document.addEventListener("DOMContentLoaded", async () => {
   initDirection();
@@ -40,6 +40,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (s === "settings") initDirectoryBrowser();
     if (s === "upload") initUpload();
     if (s === "player" || s === "party") Player.init();
+    if (s === "library") initLibrary();
     if (s === "home") {
       window._currentArtState = "";
       if (window.updateVisualArt) window.updateVisualArt();
@@ -53,6 +54,146 @@ document.addEventListener("DOMContentLoaded", async () => {
   await API.init();
   reflectDemoBadge(API.isDemo);
 });
+
+/* ---------------- Library ---------------- */
+function initLibrary() {
+  let libPage = 1;
+  const libLimit = 30;
+  let libSearch = '';
+  let libSearchTimer = null;
+
+  function fmtSize(bytes) {
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+    return (bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+  }
+
+  async function load() {
+    const list = document.getElementById('lib-list');
+    if (!list) return;
+    list.innerHTML = '<div class="lib-loading"><span class="material-symbols-rounded spin">progress_activity</span> Yükleniyor…</div>';
+
+    try {
+      const url = `/api/library?page=${libPage}&limit=${libLimit}${libSearch ? '&search=' + encodeURIComponent(libSearch) : ''}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+
+      // Stats
+      const countEl = document.getElementById('lib-count');
+      const sizeEl  = document.getElementById('lib-size');
+      if (countEl) countEl.textContent = `${data.total} parça`;
+      if (sizeEl)  sizeEl.textContent  = `Toplam: ${fmtSize(data.totalSize || 0)}`;
+
+      // Pagination
+      const ind = document.getElementById('lib-page-ind');
+      const prev = document.getElementById('lib-prev');
+      const next = document.getElementById('lib-next');
+      if (ind)  ind.textContent = `${data.current} / ${Math.max(1, data.totalPages)}`;
+      if (prev) prev.disabled = data.current <= 1;
+      if (next) next.disabled = data.current >= data.totalPages;
+
+      if (!data.files.length) {
+        list.innerHTML = '<div class="lib-loading"><span class="material-symbols-rounded">music_off</span>&nbsp;Henüz müzik yüklenmemiş.</div>';
+        return;
+      }
+
+      list.innerHTML = '';
+      data.files.forEach(file => {
+        const item = document.createElement('div');
+        item.className = 'lib-item';
+        const ext = file.name.split('.').pop().toUpperCase();
+        const displayName = file.name.replace(/-\d+\.([^.]+)$/, '.$1'); // Timestamp suffix temizle
+        item.innerHTML = `
+          <div class="lib-item-icon">
+            <span class="material-symbols-rounded">audio_file</span>
+          </div>
+          <div class="lib-item-info">
+            <div class="lib-item-name" title="${file.name}">${displayName}</div>
+            <div class="lib-item-meta">${ext} &bull; ${fmtSize(file.size)}</div>
+          </div>
+          <button class="lib-delete-btn" title="Sil" data-filename="${file.name}">
+            <span class="material-symbols-rounded">delete</span>
+          </button>
+        `;
+        list.appendChild(item);
+      });
+
+      // Silme butonları
+      list.querySelectorAll('.lib-delete-btn').forEach(btn => {
+        btn.addEventListener('click', () => confirmDelete(btn.dataset.filename));
+      });
+
+    } catch(e) {
+      const list2 = document.getElementById('lib-list');
+      if (list2) list2.innerHTML = '<div class="lib-loading">Kütüphane yüklenemedi.</div>';
+    }
+  }
+
+  function confirmDelete(filename) {
+    // Mevcut modali kaldır
+    document.getElementById('delete-modal-overlay')?.remove();
+
+    const displayName = filename.replace(/-\d+\.([^.]+)$/, '.$1');
+    const overlay = document.createElement('div');
+    overlay.className = 'delete-modal-overlay';
+    overlay.id = 'delete-modal-overlay';
+    overlay.innerHTML = `
+      <div class="delete-modal">
+        <div class="dm-icon"><span class="material-symbols-rounded">delete_forever</span></div>
+        <h3>Dosyayı Sil</h3>
+        <p>Bu dosyayı kalıcı olarak silmek istediğinize emin misiniz?<br><strong>${displayName}</strong></p>
+        <div class="delete-modal-actions">
+          <button class="btn" id="dm-cancel">Vazgeç</button>
+          <button class="btn btn-danger" id="dm-confirm">
+            <span class="material-symbols-rounded" style="font-size:16px">delete</span> Sil
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    document.getElementById('dm-cancel').onclick  = () => overlay.remove();
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+    document.getElementById('dm-confirm').onclick = async () => {
+      const confirmBtn = document.getElementById('dm-confirm');
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Siliniyor…';
+      try {
+        const res = await fetch(`/api/music/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        overlay.remove();
+        load(); // Listeyi yenile
+      } catch {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<span class="material-symbols-rounded" style="font-size:16px">delete</span> Sil';
+        alert('Dosya silinemedi. Lütfen tekrar deneyin.');
+      }
+    };
+  }
+
+  // Sayfalama
+  const prev = document.getElementById('lib-prev');
+  const next = document.getElementById('lib-next');
+  if (prev) prev.onclick = () => { if (libPage > 1) { libPage--; load(); } };
+  if (next) next.onclick = () => { libPage++; load(); };
+
+  // Arama
+  const searchInput = document.getElementById('lib-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', e => {
+      clearTimeout(libSearchTimer);
+      libSearchTimer = setTimeout(() => {
+        libSearch = e.target.value.trim();
+        libPage = 1;
+        load();
+      }, 350);
+    });
+  }
+
+  load();
+}
 
 /* ---------------- direction switch ---------------- */
 function initDirection() {
