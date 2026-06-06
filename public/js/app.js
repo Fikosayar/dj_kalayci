@@ -132,12 +132,16 @@ function initRadio() {
   window.__radioCurrentUrl = () => currentUrl;
 
   // --- Oynat ---
+  let _playLock = false;
   async function play(url, name) {
     if (!url || !url.startsWith('http')) {
       setStatus(false, '', 'Geçersiz URL'); return;
     }
+    // Mutex: eş zamanlı çift play engelle
+    if (_playLock) { console.log('[Radio] play() zaten çalışıyor, atlandı'); return; }
+    _playLock = true;
 
-    // Cihaz modunu tespit et (play çağrılmadan ÖNCE)
+    // Cihaz modunu tespit et (play çağrılmadan ÖNCE, async'ten önce sakla)
     const serverMode = isServerMode();
     const deviceId = (window.Player && Player.state) ? Player.state.device : 'unknown';
     console.log(`[Radio] play() -> device: "${deviceId}", serverMode: ${serverMode}, url: ${url}`);
@@ -170,6 +174,7 @@ function initRadio() {
       } catch(e) {
         console.error('[Radio] playRadioServer hata:', e);
         setStatus(false, currentStationName, 'Sunucu bağlantı hatası');
+        _playLock = false;
       }
     } else {
       // ===== TARAYICI MODU: <audio> elementi =====
@@ -207,6 +212,8 @@ function initRadio() {
       audio.onwaiting= () => { if (radioPlaying) { const el = document.getElementById('radio-np-status'); if (el) el.textContent = 'Tamponlanıyor…'; } };
       audio.onplaying= () => { if (currentUrl) { const el = document.getElementById('radio-np-status'); if (el) el.textContent = 'Canlı Yayın'; } };
     }
+
+    _playLock = false; // Mutex serbest bırak
   }
 
   function loadScript(src) {

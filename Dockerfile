@@ -1,8 +1,9 @@
 FROM node:20-bullseye
 
 # Ses çalmak için gerekli paketleri kuruyoruz
-# curl: mpg123'ün HTTP desteği yok, curl ile stream pipe ediyoruz
-RUN apt-get update && apt-get install -y mpg123 alsa-utils pulseaudio curl && rm -rf /var/lib/apt/lists/*
+# curl: mpg123'ün HTTP desteği yok, curl ile MP3 stream pipe ediyoruz
+# ffmpeg: HLS/m3u8 stream desteği için (curl m3u8 çözemiyor)
+RUN apt-get update && apt-get install -y mpg123 alsa-utils pulseaudio curl ffmpeg && rm -rf /var/lib/apt/lists/*
 
 # ALSA'nın dmix (karıştırıcı) IPC izin hatasını çözmek için herkese açık bir dmix konfigürasyonu yaratıyoruz
 RUN echo 'pcm.!default { type plug; slave.pcm "dmixer" } \n\
