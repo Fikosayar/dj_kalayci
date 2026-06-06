@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const mm = require('music-metadata');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 
 let currentServerProcess = null; // Sunucuda çalan müziğin process kaydı
 let radioServerProcess   = null; // Sunucuda çalan radyo stream process kaydı
@@ -418,9 +418,23 @@ app.get('/api/devices', (req, res) => {
     ]);
 });
 
-const { spawn } = require('child_process');
+// --- DEBUG: mpg123 & ses durumu ---
+app.get('/api/debug/audio', (req, res) => {
+    exec('which mpg123 && mpg123 --version 2>&1 | head -2', (err, stdout, stderr) => {
+        const mpg123Info = err ? `HATA: ${err.message}` : stdout.trim();
+        exec('aplay -l 2>&1', (err2, stdout2) => {
+            const alsaDevices = err2 ? `HATA: ${err2.message}` : stdout2.trim();
+            res.json({
+                mpg123: mpg123Info,
+                alsaDevices: alsaDevices,
+                musicProcessRunning: !!currentServerProcess,
+                radioProcessRunning: !!radioServerProcess,
+                serverPlayerState
+            });
+        });
+    });
+});
 
-// Sunucu çalar durumu
 let serverPlayerState = {
     isPlaying: false,
     currentSec: 0,
@@ -429,21 +443,10 @@ let serverPlayerState = {
     lastVolume: 70  // mpg123 percent (0-100), default %70
 };
 
-// --- ANTİ-BUZZ (Cızlama Engelleyici) ---
-// Hoparlörün uyku moduna geçip cızlamasını engellemek için arka planda sürekli sessizlik çalınır
-try {
-    const silenceProcess = spawn('aplay', ['-D', 'default', '-c', '2', '-r', '44100', '-f', 'S16_LE', '/dev/zero']);
-    silenceProcess.on('error', (err) => {
-        // Windows gibi aplay olmayan ortamlarda çökmeyi engelle
-        console.log('Anti-Buzz uyarı: aplay bulunamadı (Windows ortamı olabilir)');
-    });
-    silenceProcess.stderr.on('data', d => {
-        const msg = d.toString();
-        if (!msg.includes('Playing raw data')) console.log('Anti-Buzz:', msg);
-    });
-} catch (e) {
-    console.error('Anti-Buzz başlatılamadı:', e);
-}
+// --- ANTİ-BUZZ: aplay yerine mpg123 ile sessiz ses çal (ALSA'yı bloklamaz) ---
+// Not: aplay -D default /dev/zero ALSA'yı exclus lock'layıp mpg123'ün açmasını engelliyordu.
+// mpg123 ile sessiz bir WAV döngüsü yerine, tamamen kaldırdık çünkü dmix zaten karıştırmayı
+// handle ediyor ve çoğu modern hoparlör uyku moduna girmez.
 
 app.post('/api/music/play-server', (req, res) => {
     const { filename } = req.body;
@@ -461,10 +464,17 @@ app.post('/api/music/play-server', (req, res) => {
     currentServerProcess = spawn('mpg123', ['-R', '-o', 'alsa']);
     
     currentServerProcess.stderr.on('data', (data) => {
-        const err = data.toString();
-        if (!err.includes('High Performance')) {
-            console.error('Mpg123 Log:', err);
-        }
+        console.log('[mpg123 stderr]', data.toString().trim());
+    });
+    currentServerProcess.on('error', (err) => {
+        console.error('[mpg123 spawn error]', err.message);
+        currentServerProcess = null;
+        serverPlayerState.isPlaying = false;
+    });
+    currentServerProcess.on('close', (code) => {
+        console.log(`[mpg123 closed] code: ${code}`);
+        currentServerProcess = null;
+        serverPlayerState.isPlaying = false;
     });
 
     // İlerleme Çubuğu İçin Standart Çıktıyı Dinleme
