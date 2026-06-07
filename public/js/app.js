@@ -251,31 +251,53 @@ function initRadio() {
     });
   });
 
-  // ===================== KAYITLI İSTASYONLAR =====================
-  const STATIONS_KEY = 'dj_saved_stations';
+  // ===================== KAYITLI İSTASYONLAR (Sunucu API) =====================
 
-  function loadStations() {
-    try { return JSON.parse(localStorage.getItem(STATIONS_KEY) || '[]'); } catch { return []; }
+  async function apiGetStations() {
+    const r = await fetch('/api/stations'); return r.ok ? r.json() : [];
   }
-  function saveStations(list) {
-    localStorage.setItem(STATIONS_KEY, JSON.stringify(list));
+  async function apiAddStation(name, url) {
+    const r = await fetch('/api/stations', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, url }) });
+    return r.json();
+  }
+  async function apiDeleteStation(id) {
+    const r = await fetch(`/api/stations/${id}`, { method: 'DELETE' });
+    return r.ok;
   }
 
-  function renderStations() {
-    const list     = document.getElementById('saved-stations-list');
-    const empty    = document.getElementById('saved-stations-empty');
-    if (!list) return;
+  // localStorage'da eski kayıtlar varsa sunucuya taşı (tek seferlik migrasyon)
+  async function migrateFromLocalStorage() {
+    const OLD_KEY = 'dj_saved_stations';
+    const old = localStorage.getItem(OLD_KEY);
+    if (!old) return;
+    try {
+      const list = JSON.parse(old);
+      if (list.length > 0) {
+        console.log(`[Stations] ${list.length} istasyon localStorage'dan sunucuya taşınıyor…`);
+        for (const s of list) { if (s.name && s.url) await apiAddStation(s.name, s.url); }
+        localStorage.removeItem(OLD_KEY);
+        console.log('[Stations] Migrasyon tamamlandı.');
+      } else { localStorage.removeItem(OLD_KEY); }
+    } catch(e) { localStorage.removeItem(OLD_KEY); }
+  }
 
-    const stations = loadStations();
-    list.innerHTML = '';
+  async function renderStations() {
+    const listEl = document.getElementById('saved-stations-list');
+    const emptyEl = document.getElementById('saved-stations-empty');
+    if (!listEl) return;
+
+    listEl.innerHTML = '<div style="opacity:.4;font-size:.8rem;padding:10px 0;display:flex;align-items:center;gap:8px"><span class="material-symbols-rounded spin" style="font-size:18px">progress_activity</span> Yükleniyor…</div>';
+
+    const stations = await apiGetStations();
+    listEl.innerHTML = '';
 
     if (stations.length === 0) {
-      if (empty) empty.style.display = 'flex';
+      if (emptyEl) emptyEl.style.display = 'flex';
       return;
     }
-    if (empty) empty.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = 'none';
 
-    stations.forEach((st, idx) => {
+    stations.forEach((st) => {
       const card = document.createElement('div');
       card.className = 'saved-station-card' + (radioPlaying && currentUrl === st.url ? ' active' : '');
       card.innerHTML = `
@@ -285,11 +307,10 @@ function initRadio() {
           <div class="ssc-url">${st.url}</div>
         </div>
         <span class="material-symbols-rounded ssc-play-icon">${radioPlaying && currentUrl === st.url ? 'pause' : 'play_arrow'}</span>
-        <button class="ssc-delete" title="Sil" data-idx="${idx}">
+        <button class="ssc-delete" title="Sil">
           <span class="material-symbols-rounded">delete</span>
         </button>`;
 
-      // Karta tıklayınca çal (sil butonuna değilse)
       card.addEventListener('click', (e) => {
         if (e.target.closest('.ssc-delete')) return;
         if (radioPlaying && currentUrl === st.url) { stop(); renderStations(); return; }
@@ -297,16 +318,14 @@ function initRadio() {
         play(st.url, st.name).then(() => renderStations());
       });
 
-      // Sil butonu
-      card.querySelector('.ssc-delete').addEventListener('click', (e) => {
+      card.querySelector('.ssc-delete').addEventListener('click', async (e) => {
         e.stopPropagation();
-        const stations2 = loadStations();
-        stations2.splice(idx, 1);
-        saveStations(stations2);
+        card.style.opacity = '0.4';
+        await apiDeleteStation(st.id);
         renderStations();
       });
 
-      list.appendChild(card);
+      listEl.appendChild(card);
     });
   }
 
@@ -323,7 +342,6 @@ function initRadio() {
       const open = addForm.style.display !== 'none';
       addForm.style.display = open ? 'none' : 'block';
       if (!open) {
-        // Formu açarken URL alanına mevcut URL'i kopyala
         if (urlInput && urlInput.value.trim()) stUrlInp.value = urlInput.value.trim();
         nameInp.focus();
       }
@@ -338,18 +356,17 @@ function initRadio() {
   }
 
   if (btnSave) {
-    btnSave.addEventListener('click', () => {
+    btnSave.addEventListener('click', async () => {
       const name = nameInp.value.trim();
       const url  = stUrlInp.value.trim();
       if (!name) { nameInp.focus(); nameInp.style.outline = '2px solid #f87171'; setTimeout(() => nameInp.style.outline = '', 1200); return; }
       if (!url || !url.startsWith('http')) { stUrlInp.focus(); stUrlInp.style.outline = '2px solid #f87171'; setTimeout(() => stUrlInp.style.outline = '', 1200); return; }
 
-      // Aynı URL varsa güncelle, yoksa ekle
-      const stations = loadStations();
-      const existing = stations.findIndex(s => s.url === url);
-      if (existing >= 0) { stations[existing].name = name; }
-      else { stations.push({ name, url }); }
-      saveStations(stations);
+      btnSave.disabled = true;
+      btnSave.style.opacity = '0.6';
+      await apiAddStation(name, url);
+      btnSave.disabled = false;
+      btnSave.style.opacity = '';
 
       nameInp.value = ''; stUrlInp.value = '';
       addForm.style.display = 'none';
@@ -357,13 +374,12 @@ function initRadio() {
     });
   }
 
-  // Enter tuşu ile kaydet
   [nameInp, stUrlInp].forEach(inp => {
     inp?.addEventListener('keydown', e => { if (e.key === 'Enter') btnSave?.click(); });
   });
 
-  // İlk render
-  renderStations();
+  // Başlangıç: localStorage'dan taşı, sonra render et
+  migrateFromLocalStorage().then(() => renderStations());
 }
 
 /* ---------------- Library ---------------- */

@@ -87,6 +87,64 @@ if (!fs.existsSync(defaultConfig.uploadPath)) {
 
 // --- API ENDPOINTS ---
 
+// ============================================================
+// KAYITLI RADYO İSTASYONLARI — Sunucu tarafı kalıcı depolama
+// ============================================================
+const STATIONS_FILE = path.join(process.cwd(), 'stations.json');
+
+function readStations() {
+    try {
+        if (fs.existsSync(STATIONS_FILE)) {
+            return JSON.parse(fs.readFileSync(STATIONS_FILE, 'utf-8'));
+        }
+    } catch(e) { console.error('[Stations] Okuma hatası:', e.message); }
+    return [];
+}
+
+function writeStations(list) {
+    try {
+        fs.writeFileSync(STATIONS_FILE, JSON.stringify(list, null, 2), 'utf-8');
+    } catch(e) { console.error('[Stations] Yazma hatası:', e.message); }
+}
+
+// Tüm istasyonları listele
+app.get('/api/stations', (req, res) => {
+    res.json(readStations());
+});
+
+// Yeni istasyon ekle
+app.post('/api/stations', (req, res) => {
+    const { name, url } = req.body;
+    if (!name || !url) return res.status(400).json({ error: 'name ve url gerekli' });
+    if (!url.startsWith('http')) return res.status(400).json({ error: 'Geçersiz URL' });
+
+    const list = readStations();
+    // Aynı URL varsa güncelle
+    const existing = list.findIndex(s => s.url === url);
+    if (existing >= 0) {
+        list[existing].name = name;
+        writeStations(list);
+        return res.json({ success: true, station: list[existing], updated: true });
+    }
+    const station = { id: Date.now().toString(), name, url };
+    list.push(station);
+    writeStations(list);
+    console.log(`[Stations] Eklendi: ${name}`);
+    res.json({ success: true, station });
+});
+
+// İstasyon sil
+app.delete('/api/stations/:id', (req, res) => {
+    const { id } = req.params;
+    let list = readStations();
+    const before = list.length;
+    list = list.filter(s => s.id !== id);
+    if (list.length === before) return res.status(404).json({ error: 'İstasyon bulunamadı' });
+    writeStations(list);
+    console.log(`[Stations] Silindi: ${id}`);
+    res.json({ success: true });
+});
+
 app.get('/api/settings/upload-path', (req, res) => {
     const config = getConfig();
     res.json({ uploadPath: config.uploadPath });
