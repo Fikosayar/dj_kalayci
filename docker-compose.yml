@@ -22,9 +22,8 @@ services:
     volumes:
       # Uploads klasörünü kalıcı yapıyoruz
       - dj_kalayci_uploads:/app/uploads
-      # Ayarlar ve kayıtlı istasyonlar — redeploy'da kaybolmasın
-      - dj_kalayci_config:/app/config.json
-      - dj_kalayci_stations:/app/stations.json
+      # Kalıcı veri klasörü (config.json + stations.json burada)
+      - dj_kalayci_data:/app/data
     labels:
       # Traefik: Büyük dosya yüklemelerine (MP3 set vb.) izin ver
       # Middleware tanımı
@@ -38,5 +37,4 @@ services:
 
 volumes:
   dj_kalayci_uploads:
-  dj_kalayci_config:
-  dj_kalayci_stations:
+  dj_kalayci_data:

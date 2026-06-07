@@ -58,7 +58,14 @@ app.use((err, req, res, next) => {
     next(err);
 });
 
-const CONFIG_FILE = path.join(process.cwd(), 'config.json');
+const DATA_DIR    = path.join(process.cwd(), 'data');
+const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
+
+// data/ klasörünü oluştur (ilk çalıştırmada veya yeni volume mount sonrası)
+if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    console.log('[Data] /app/data klasörü oluşturuldu.');
+}
 
 // Konfigürasyon okuma fonksiyonu
 function getConfig() {
@@ -90,7 +97,7 @@ if (!fs.existsSync(defaultConfig.uploadPath)) {
 // ============================================================
 // KAYITLI RADYO İSTASYONLARI — Sunucu tarafı kalıcı depolama
 // ============================================================
-const STATIONS_FILE = path.join(process.cwd(), 'stations.json');
+const STATIONS_FILE = path.join(DATA_DIR, 'stations.json');
 
 function readStations() {
     try {
