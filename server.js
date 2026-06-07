@@ -295,7 +295,24 @@ app.post('/api/upload/chunk', (req, res) => {
 });
 
 // Müzikleri listeleme API'si (Pagination destekli)
-app.get('/api/music', (req, res) => {
+// --- MP3 SÜRE ÖNBELLEK (ffprobe ile gerçek süre) ---
+const _durCache = {}; // filename → saniye
+
+function getFileDuration(filePath) {
+    const name = path.basename(filePath);
+    if (_durCache[name]) return Promise.resolve(_durCache[name]);
+    return new Promise((resolve) => {
+        exec(`ffprobe -v quiet -show_entries format=duration -of csv=p=0 "${filePath}"`, (err, stdout) => {
+            if (!err && stdout && stdout.trim()) {
+                const sec = parseFloat(stdout.trim());
+                if (!isNaN(sec) && sec > 0) { _durCache[name] = Math.round(sec); resolve(Math.round(sec)); return; }
+            }
+            resolve(0);
+        });
+    });
+}
+
+app.get('/api/music', async (req, res) => {
     const config = getConfig();
     const uploadPath = config.uploadPath;
 
@@ -304,26 +321,28 @@ app.get('/api/music', (req, res) => {
 
     try {
         if (!fs.existsSync(uploadPath)) {
-            return res.json({ files: [], total: 0, totalPages: 0, current: page });
+            return res.json({ files: [], durations: {}, total: 0, totalPages: 0, current: page });
         }
 
-        fs.readdir(uploadPath, (err, files) => {
-            if (err) {
-                return res.status(500).json({ error: 'Klasör okunamadı' });
-            }
+        fs.readdir(uploadPath, async (err, files) => {
+            if (err) return res.status(500).json({ error: 'Klasör okunamadı' });
 
-            // Sadece mp3 dosyalarını listele ve sondan başa (en yeni) sırala
             const musicFiles = files
                 .filter(f => f.toLowerCase().endsWith('.mp3') || f.toLowerCase().endsWith('.wav'))
                 .reverse();
 
             const startIndex = (page - 1) * limit;
-            const endIndex = page * limit;
+            const paginatedFiles = musicFiles.slice(startIndex, startIndex + limit);
 
-            const paginatedFiles = musicFiles.slice(startIndex, endIndex);
+            // Gerçek süreleri ffprobe ile oku (önbellekten veya ffprobe'dan)
+            const durations = {};
+            await Promise.all(paginatedFiles.map(async (f) => {
+                durations[f] = await getFileDuration(path.join(uploadPath, f));
+            }));
 
             res.json({
                 files: paginatedFiles,
+                durations,
                 total: musicFiles.length,
                 totalPages: Math.ceil(musicFiles.length / limit),
                 current: page
@@ -778,7 +797,12 @@ app.post('/api/music/volume-server', (req, res) => {
 });
 
 app.get('/api/music/status-server', (req, res) => {
-    res.json(serverPlayerState);
+    // player.js: state.time = s.time, state.duration = s.duration
+    res.json({
+        ...serverPlayerState,
+        time:     serverPlayerState.currentSec,
+        duration: serverPlayerState.totalSec,
+    });
 });
 
 app.post('/api/music/seek-server', (req, res) => {

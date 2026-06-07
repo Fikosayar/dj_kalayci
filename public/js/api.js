@@ -8,6 +8,7 @@
 const API = (() => {
   let demo = false;
   const listeners = [];
+  const _durCache = {}; // filename → saniye (sunucudan gelen gerçek süreler)
 
   // --- Demo veri ---------------------------------------------------------
   const DEMO_TRACKS = [
@@ -37,10 +38,11 @@ const API = (() => {
     return () => { h += 0x6D2B79F5; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   }
 
-  // Deterministik süre (saniye) — demo + gerçek fallback için
+  // Süre: önce sunucudan önbellekteki gerçek süreyi kullan, yoksa sahte üret
   function durationFor(name) {
+    if (_durCache[name] && _durCache[name] > 0) return _durCache[name];
     const r = seeded(name + "_dur");
-    return 150 + Math.floor(r() * 170); // 2:30 – 5:20
+    return 150 + Math.floor(r() * 170); // fallback: 2:30 – 5:20
   }
 
   // Deterministik dalgaform tepe değerleri (0..1), N adet
@@ -93,7 +95,10 @@ const API = (() => {
         try {
           const res = await fetch(`/api/music?page=${page}&limit=${limit}`);
           if (!res.ok) throw new Error();
-          return await res.json();
+          const data = await res.json();
+          // Gelen gerçek süreleri önbelleğe al
+          if (data.durations) Object.assign(_durCache, data.durations);
+          return data;
         } catch (e) { demo = true; listeners.forEach(fn => fn(true)); }
       }
       const total = DEMO_TRACKS.length;
