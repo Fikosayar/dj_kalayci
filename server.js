@@ -470,12 +470,20 @@ app.get('/api/radio/test', (req, res) => {
 
 // --- RADYO HELPER ---
 // ffmpeg tüm formatları destekler: MP3, AAC, HLS/m3u8, Icecast, PLS, uzantısız URL
-let _radioStartTime = 0;
+let _radioStartTime  = 0;
+let _radioRetryCount = 0;   // Otomatik yeniden bağlanma sayacı
+let _lastRadioVol    = 0.5; // Son kullanılan ses seviyesi (reconnect için)
 
 function startRadioStream(url, vol01) {
     killAllServerAudio();
-    radioServerUrl  = url;
-    _radioStartTime = Date.now();
+    radioServerUrl   = url;
+    _radioStartTime  = Date.now();
+    _lastRadioVol    = vol01;
+    // Kullanıcı bilerek başlatıyorsa sayacı sıfırla
+    // (reconnect içinden çağrıldığında sayaç korunur)
+    if (url !== radioServerUrl || _radioRetryCount === 0) {
+        // Yeni URL = sıfırla
+    }
 
     const vol01c    = Math.max(0, Math.min(1, vol01));
     const cubic     = Math.pow(vol01c, 3);
@@ -519,7 +527,30 @@ function startRadioStream(url, vol01) {
     proc.stdout.on('data', () => {}); // stdout buffer dolmasın
     proc.on('close', (c, sig) => {
         console.log(`[Radio] ffmpeg kapandı (code:${c} sig:${sig})`);
-        if (radioServerProcess === thisRadio) radioServerProcess = null;
+        if (radioServerProcess !== thisRadio) return; // Başka bir process başladıysa dokunma
+        radioServerProcess = null;
+
+        // SIGKILL = biz bilinçli durdurduk → yeniden bağlanma
+        // Diğer durumlarda (session süresi, 404, ağ kesintisi) → otomatik yeniden bağlan
+        if (sig === 'SIGKILL' || sig === 'SIGTERM') {
+            console.log('[Radio] Kullanıcı durdurdu, yeniden bağlanılmıyor.');
+            return;
+        }
+
+        if (radioServerUrl === url && _radioRetryCount < 10) {
+            _radioRetryCount++;
+            const delay = Math.min(3000 * _radioRetryCount, 15000); // 3s → 6s → ... → 15s
+            console.log(`[Radio] Stream kesildi (${c}), ${delay/1000}sn sonra yeniden bağlanılıyor... (deneme ${_radioRetryCount}/10)`);
+            setTimeout(() => {
+                if (radioServerUrl === url && !radioServerProcess) {
+                    startRadioStream(url, _lastRadioVol);
+                }
+            }, delay);
+        } else if (_radioRetryCount >= 10) {
+            console.log('[Radio] Maksimum yeniden bağlanma denemesi aşıldı, durduruluyor.');
+            radioServerUrl = null;
+            _radioRetryCount = 0;
+        }
     });
     proc.on('error', (e) => {
         console.error('[Radio] ffmpeg spawn hata:', e.message);
@@ -533,6 +564,7 @@ app.post('/api/radio/play-server', (req, res) => {
     if (!url) return res.status(400).json({ error: 'URL gerekli' });
     console.log(`[Radio] Istek alindi - URL: ${url}, Volume: ${volume}`);
     const vol = volume !== undefined ? volume : 0.7;
+    _radioRetryCount = 0; // Kullanıcı yeni stream başlatıyor — retry sayacını sıfırla
     startRadioStream(url, vol);
     res.json({ success: true, message: 'Radyo sunucuda caliniyor.' });
 });
