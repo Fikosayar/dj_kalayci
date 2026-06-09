@@ -481,11 +481,6 @@ function startRadioStream(url, vol01) {
     radioServerUrl   = url;
     _radioStartTime  = Date.now();
     _lastRadioVol    = vol01;
-    // Kullanıcı bilerek başlatıyorsa sayacı sıfırla
-    // (reconnect içinden çağrıldığında sayaç korunur)
-    if (url !== radioServerUrl || _radioRetryCount === 0) {
-        // Yeni URL = sıfırla
-    }
 
     const vol01c    = Math.max(0, Math.min(1, vol01));
     const cubic     = Math.pow(vol01c, 3);
