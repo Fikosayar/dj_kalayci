@@ -90,6 +90,15 @@ function initRadio() {
       c.classList.toggle('playing', playing && c.dataset.url === currentUrl);
     });
 
+    // Sol menü mini-player güncelle
+    if (window.Player) {
+      if (playing) {
+        window.Player.setMiniRadio(name || 'Radyo', true);
+      } else {
+        window.Player.clearMiniRadio();
+      }
+    }
+
     radioPlaying = playing;
   }
 

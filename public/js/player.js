@@ -377,11 +377,12 @@ const Player = (() => {
 
   }
 
-  // sidebar mini now-playing
+  // sidebar mini now-playing — müzik
   function showMini() {
     const mini = document.getElementById("np-mini");
     if (!mini || !state.current) return;
     mini.classList.add("show");
+    mini.dataset.mode = 'music';
     updateMini();
   }
   function updateMini() {
@@ -391,6 +392,38 @@ const Player = (() => {
     const eq = mini.querySelector(".eq");
     if (b) b.textContent = cleanName(state.current);
     if (eq) eq.style.visibility = state.isPlaying ? "visible" : "hidden";
+  }
+
+  // sidebar mini now-playing — radyo
+  function setMiniRadio(name, playing) {
+    const mini = document.getElementById("np-mini");
+    if (!mini) return;
+    mini.classList.add("show");
+    mini.dataset.mode = 'radio';
+    const b   = mini.querySelector(".np-mini-info b");
+    const sp  = mini.querySelector(".np-mini-info span");
+    const eq  = mini.querySelector(".eq");
+    const ico = mini.querySelector(".np-mini-icon");
+    if (b)   b.textContent  = name || 'Radyo';
+    if (sp)  sp.textContent = playing ? 'Canlı Yayın' : 'Durdu';
+    if (eq)  eq.style.visibility = playing ? 'visible' : 'hidden';
+    if (ico) ico.textContent = 'sensors';
+  }
+  function clearMiniRadio() {
+    // Radyo mini'yi temizle — müzik modu varsa onu göster, yoksa gizle
+    const mini = document.getElementById("np-mini");
+    if (!mini) return;
+    if (mini.dataset.mode !== 'radio') return; // müzik modundaysa dokunma
+    const sp  = mini.querySelector(".np-mini-info span");
+    const ico = mini.querySelector(".np-mini-icon");
+    if (sp)  sp.textContent = 'Çalıyor';
+    if (ico) ico.textContent = 'equalizer';
+    if (state.current) {
+      mini.dataset.mode = 'music';
+      updateMini();
+    } else {
+      mini.classList.remove("show");
+    }
   }
 
   // ---------------- bindings ----------------
@@ -508,7 +541,7 @@ const Player = (() => {
     setPlayIcon();
   }
 
-  return { init, playMusic, setDevice, stopAll, state, save };
+  return { init, playMusic, setDevice, stopAll, state, save, setMiniRadio, clearMiniRadio };
 })();
 
 // const ile tanımlanan değişkenler window'a eklenmez.
