@@ -114,12 +114,11 @@ function initRadio() {
 
   // --- Durdur (her ikisini de) ---
   function stop() {
-    // Browser audio durdur
+    stopRadioStatusSync();          // Polling'i durdur
     if (hls) { hls.destroy(); hls = null; }
     audio.pause();
     audio.removeAttribute('src');
     audio.load();
-    // Server radyo durdur
     API.stopRadioServer();
     setStatus(false, currentStationName || '', 'Durdu');
     radioPlaying = false;
@@ -214,6 +213,42 @@ function initRadio() {
     }
 
     _playLock = false; // Mutex serbest bırak
+
+    // Sunucu modunda çalınıyorsa UI'ı sunucu durumuyla senkronize et
+    if (serverMode) startRadioStatusSync(url);
+  }
+
+  // --- Sunucu radyo durumu polling ---
+  let _radioSyncTimer = null;
+  function stopRadioStatusSync() {
+    if (_radioSyncTimer) { clearInterval(_radioSyncTimer); _radioSyncTimer = null; }
+  }
+  function startRadioStatusSync(startedUrl) {
+    stopRadioStatusSync();
+    _radioSyncTimer = setInterval(async () => {
+      // Kullanıcı durdurduysa veya farklı URL'e geçtiyse polling'i bitir
+      if (!currentUrl || currentUrl !== startedUrl || !isServerMode()) {
+        stopRadioStatusSync(); return;
+      }
+      try {
+        const s = await API.radioStatus();
+        const npStatus = document.getElementById('radio-np-status');
+
+        if (s.isReconnecting) {
+          // Sunucu yeniden bağlanıyor — UI'da göster ama butonu değiştirme
+          if (npStatus) npStatus.textContent = `Yeniden bağlanıyor… (${s.retryCount}/10)`;
+        } else if (s.isPlaying && s.url === currentUrl) {
+          // Sunucu çalıyor ama UI durduruldu gösteriyor → senkronize et
+          if (!radioPlaying) {
+            setStatus(true, currentStationName, 'Canlı Yayın (Sunucu)');
+          }
+        } else if (!s.isPlaying && !s.isReconnecting && radioPlaying) {
+          // Sunucu gerçekten durdu (hata vb.) → UI'ı da durdur
+          setStatus(false, currentStationName, 'Yayın kesildi');
+          stopRadioStatusSync();
+        }
+      } catch(e) { /* bağlantı hatası — sessizce atla */ }
+    }, 3000);
   }
 
   function loadScript(src) {

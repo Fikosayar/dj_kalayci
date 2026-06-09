@@ -193,6 +193,13 @@ const API = (() => {
     async statusServer() {
       if (demo) return { isPlaying: false, time: 0, duration: 0 };
       return fetch("/api/music/status-server").then(r => r.json());
+    },
+    async radioStatus() {
+      if (demo) return { isPlaying: false, isReconnecting: false, url: null };
+      try {
+        const r = await fetch("/api/radio/status");
+        return r.ok ? r.json() : { isPlaying: false, isReconnecting: false, url: null };
+      } catch { return { isPlaying: false, isReconnecting: false, url: null }; }
     }
   };
 })();

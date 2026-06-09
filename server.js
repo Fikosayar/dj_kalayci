@@ -558,6 +558,18 @@ function startRadioStream(url, vol01) {
     });
 }
 
+// --- RADYO DURUMU (Frontend polling için) ---
+app.get('/api/radio/status', (req, res) => {
+    const isPlaying      = !!radioServerProcess;
+    const isReconnecting = !radioServerProcess && !!radioServerUrl && _radioRetryCount > 0;
+    res.json({
+        isPlaying,
+        isReconnecting,
+        url:        radioServerUrl || null,
+        retryCount: _radioRetryCount,
+    });
+});
+
 // --- RADYO SUNUCU OYNATMA ---
 app.post('/api/radio/play-server', (req, res) => {
     const { url, volume } = req.body;
@@ -577,7 +589,8 @@ app.post('/api/radio/stop-server', (req, res) => {
         try { radioServerProcess.kill('SIGKILL'); } catch(e) {}
         radioServerProcess = null;
     }
-    radioServerUrl = null;
+    radioServerUrl   = null;  // URL temizle — auto-reconnect durduruluyor
+    _radioRetryCount = 0;     // Sayacı sıfırla
     res.json({ success: true });
 });
 
