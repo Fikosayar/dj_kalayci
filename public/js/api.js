@@ -90,10 +90,10 @@ const API = (() => {
     durationFor,
     peaksFor,
 
-    async getMusic(page, limit) {
+    async getMusic(page, limit, searchParam = '') {
       if (!demo) {
         try {
-          const res = await fetch(`/api/music?page=${page}&limit=${limit}`);
+          const res = await fetch(`/api/music?page=${page}&limit=${limit}${searchParam}`);
           if (!res.ok) throw new Error();
           const data = await res.json();
           // Gelen gerçek süreleri önbelleğe al

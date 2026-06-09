@@ -9,6 +9,7 @@ const Player = (() => {
   const state = {
     page: 1, limit: 25, totalPages: 1,
     playlist: [],
+    search: '',
     current: null,
     isPlaying: false,
     isShuffle: false,
@@ -90,6 +91,8 @@ const Player = (() => {
       prevPage: document.getElementById("btn-prev-page"),
       nextPage: document.getElementById("btn-next-page"),
       pageInd: document.getElementById("page-indicator"),
+      search: document.getElementById("pl-search"),
+      searchClear: document.getElementById("pl-search-clear"),
     };
     audio = el.audio;
 
@@ -102,6 +105,29 @@ const Player = (() => {
     if (el.prevPage) el.prevPage.onclick = () => { if (state.page > 1) { state.page--; save(); loadList(); } };
     if (el.nextPage) el.nextPage.onclick = () => { if (state.page < state.totalPages) { state.page++; save(); loadList(); } };
 
+    // Playlist arama
+    let _searchTimer = null;
+    if (el.search) {
+      el.search.addEventListener('input', () => {
+        clearTimeout(_searchTimer);
+        _searchTimer = setTimeout(() => {
+          state.search = el.search.value.trim();
+          state.page = 1;
+          if (el.searchClear) el.searchClear.style.display = state.search ? 'flex' : 'none';
+          loadList();
+        }, 350);
+      });
+    }
+    if (el.searchClear) {
+      el.searchClear.onclick = () => {
+        state.search = '';
+        if (el.search) el.search.value = '';
+        el.searchClear.style.display = 'none';
+        state.page = 1;
+        loadList();
+      };
+    }
+
     bindControls();
     syncToggleButtons();
     applyVolume();
@@ -112,7 +138,8 @@ const Player = (() => {
   async function loadList() {
     if (!el.list) return;
     el.list.innerHTML = `<div class="empty-state">Yükleniyor…</div>`;
-    const data = await API.getMusic(state.page, state.limit);
+    const searchParam = state.search ? `&search=${encodeURIComponent(state.search)}` : '';
+    const data = await API.getMusic(state.page, state.limit, searchParam);
     state.totalPages = data.totalPages;
     state.playlist = data.files;
 

@@ -604,15 +604,41 @@ select option { background: var(--surface); color: var(--ink); }
 
 /* playlist */
 .playlist { padding: 26px; display: flex; flex-direction: column; min-height: 0; }
-.playlist-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+.playlist-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 12px; flex-wrap: wrap; }
 .playlist-head h3 {
   font-family: var(--font-display); font-style: var(--display-style); font-weight: var(--display-weight);
   font-size: 19px; display: flex; align-items: center; gap: 9px;
 }
 .playlist-head h3 { font-style: normal; text-transform: uppercase; letter-spacing: .03em; font-size: 16px; }
 .playlist-head h3 .material-symbols-rounded { color: var(--accent); font-size: 21px; }
+.playlist-head-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .per-page { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-faint); }
 .per-page select { padding: 5px 8px; font-size: 12px; border-radius: var(--radius-sm); }
+
+/* Playlist arama kutusu */
+.pl-search-wrap {
+  position: relative; display: flex; align-items: center;
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); overflow: hidden;
+  transition: border-color .2s, box-shadow .2s;
+}
+.pl-search-wrap:focus-within {
+  border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.pl-search-icon { font-size: 17px; color: var(--ink-faint); padding: 0 8px; pointer-events: none; }
+#pl-search {
+  background: transparent; border: none; outline: none;
+  color: var(--ink); font-size: 13px; padding: 6px 0; width: 160px;
+}
+#pl-search::placeholder { color: var(--ink-faint); }
+.pl-search-clear {
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--ink-faint); padding: 0 8px; height: 100%;
+  transition: color .15s;
+}
+.pl-search-clear:hover { color: var(--ink); }
+.pl-search-clear .material-symbols-rounded { font-size: 16px; }
 
 .tracklist { flex: 1; overflow-y: auto; scrollbar-gutter: stable; display: flex; flex-direction: column; gap: 2px; margin: 0 -8px; padding: 0 8px; min-height: 0; }
 .tracklist::-webkit-scrollbar { width: 8px; }

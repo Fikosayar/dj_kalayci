@@ -316,8 +316,9 @@ app.get('/api/music', async (req, res) => {
     const config = getConfig();
     const uploadPath = config.uploadPath;
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const page   = parseInt(req.query.page)  || 1;
+    const limit  = parseInt(req.query.limit) || 10;
+    const search = (req.query.search || '').toLowerCase().trim();
 
     try {
         if (!fs.existsSync(uploadPath)) {
@@ -329,9 +330,10 @@ app.get('/api/music', async (req, res) => {
 
             const musicFiles = files
                 .filter(f => f.toLowerCase().endsWith('.mp3') || f.toLowerCase().endsWith('.wav'))
+                .filter(f => !search || f.toLowerCase().includes(search))  // Arama — tüm dosyalarda
                 .reverse();
 
-            const startIndex = (page - 1) * limit;
+            const startIndex    = (page - 1) * limit;
             const paginatedFiles = musicFiles.slice(startIndex, startIndex + limit);
 
             // Gerçek süreleri ffprobe ile oku (önbellekten veya ffprobe'dan)
@@ -344,7 +346,7 @@ app.get('/api/music', async (req, res) => {
                 files: paginatedFiles,
                 durations,
                 total: musicFiles.length,
-                totalPages: Math.ceil(musicFiles.length / limit),
+                totalPages: Math.ceil(musicFiles.length / limit) || 1,
                 current: page
             });
         });

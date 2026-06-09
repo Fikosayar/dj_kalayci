@@ -202,14 +202,23 @@
         <section class="card playlist">
           <div class="playlist-head">
             <h3><span class="material-symbols-rounded">queue_music</span>Çalma Listesi</h3>
-            <div class="per-page">
-              <span>Sayfa:</span>
-              <select id="limit-select">
-                <option value="10">10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
+            <div class="playlist-head-right">
+              <div class="pl-search-wrap">
+                <span class="material-symbols-rounded pl-search-icon">search</span>
+                <input type="text" id="pl-search" placeholder="Şarkı ara…" autocomplete="off">
+                <button id="pl-search-clear" class="pl-search-clear" title="Temizle" style="display:none">
+                  <span class="material-symbols-rounded">close</span>
+                </button>
+              </div>
+              <div class="per-page">
+                <span>Sayfa:</span>
+                <select id="limit-select">
+                  <option value="10">10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </div>
             </div>
           </div>
           <div id="music-list" class="tracklist"></div>
