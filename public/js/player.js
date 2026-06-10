@@ -176,6 +176,18 @@ const Player = (() => {
         return; // playMusic tüm state'i güncelliyor
       }
 
+      // --- Duraklat / Devam değişti mi? ---
+      if (state.current && typeof s.isPlaying === 'boolean' && s.isPlaying !== state.isPlaying) {
+        state.isPlaying = s.isPlaying;
+        setPlayIcon();
+        if (s.isPlaying) {
+          startVirtual();
+        } else {
+          stopVirtual();
+        }
+        console.log(`[Sync] Farklı cihazdan ${s.isPlaying ? 'devam' : 'duraklat'}`);
+      }
+
       // --- Shuffle/Loop değişti mi? ---
       if (s.isShuffle !== state.isShuffle) {
         state.isShuffle = s.isShuffle;
@@ -346,6 +358,7 @@ const Player = (() => {
       if (state.playlist.length) playMusic(state.playlist[0]);
       return;
     }
+    markLocalChange(); // Duraklat/devam yerel — echo'yu engelle
     const a = getAudio();
     if (hasRealAudio()) {
       a.paused ? a.play().catch(()=>{}) : a.pause();

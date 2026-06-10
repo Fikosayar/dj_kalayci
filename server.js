@@ -818,6 +818,7 @@ app.post('/api/music/stop-server', (req, res) => {
 app.post('/api/music/pause-server', (req, res) => {
     if (currentServerProcess) {
         currentServerProcess.stdin.write('P\n'); // Pause toggle
+        sharedState.updatedAt = Date.now();       // Diğer cihazlar isPlaying değişimini algılasın
     }
     res.json({ success: true });
 });
