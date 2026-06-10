@@ -200,6 +200,22 @@ const API = (() => {
         const r = await fetch("/api/radio/status");
         return r.ok ? r.json() : { isPlaying: false, isReconnecting: false, url: null };
       } catch { return { isPlaying: false, isReconnecting: false, url: null }; }
+    },
+    async getSharedState() {
+      if (demo) return null;
+      try {
+        const r = await fetch("/api/player/shared-state");
+        return r.ok ? r.json() : null;
+      } catch { return null; }
+    },
+    async postSharedState(data) {
+      if (demo) return;
+      try {
+        await fetch("/api/player/shared-state", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+      } catch {}
     }
   };
 })();

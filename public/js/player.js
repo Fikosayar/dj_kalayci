@@ -132,6 +132,67 @@ const Player = (() => {
     syncToggleButtons();
     applyVolume();
     loadList().then(restorePlayingUI);
+
+    // Server modunda paylaşımlı state polling başlat
+    if (state.device !== 'browser') startSharedStateSync();
+  }
+
+  // ---- Paylaşımlı state senkronizasyonu ----
+  let _sharedSyncTimer    = null;
+  let _lastLocalChangeAt  = 0;   // Son yerel değişikliğin zamanı (echo önleme)
+  let _lastAppliedAt      = 0;   // Son sunucu güncellemesinin updatedAt'ı
+
+  function markLocalChange() {
+    _lastLocalChangeAt = Date.now();
+  }
+
+  function startSharedStateSync() {
+    stopSharedStateSync();
+    _sharedSyncTimer = setInterval(applySharedState, 2500);
+  }
+  function stopSharedStateSync() {
+    if (_sharedSyncTimer) { clearInterval(_sharedSyncTimer); _sharedSyncTimer = null; }
+  }
+
+  async function applySharedState() {
+    if (state.device === 'browser') return; // Browser modunda sync yok
+    try {
+      const s = await API.getSharedState();
+      if (!s || !s.updatedAt) return;
+
+      // Bu güncellemeyi zaten işledik → atla
+      if (s.updatedAt <= _lastAppliedAt) return;
+
+      // Yerel değişiklik < 3sn önce yapıldıysa → kendi değişikliğimizin echo'su, atla
+      const sinceLocal = Date.now() - _lastLocalChangeAt;
+      if (sinceLocal < 3000) return;
+
+      _lastAppliedAt = s.updatedAt;
+
+      // --- Şarkı değişti mi? ---
+      if (s.file && s.file !== state.current) {
+        console.log(`[Sync] Farklı cihazdan şarkı değişti: ${s.file}`);
+        playMusic(s.file);
+        return; // playMusic tüm state'i güncelliyor
+      }
+
+      // --- Shuffle/Loop değişti mi? ---
+      if (s.isShuffle !== state.isShuffle) {
+        state.isShuffle = s.isShuffle;
+        syncToggleButtons(); save();
+      }
+      if (s.isLoop !== state.isLoop) {
+        state.isLoop = s.isLoop;
+        syncToggleButtons(); save();
+      }
+
+      // --- Ses seviyesi değişti mi? (±3% tolerans — küçük farkları yoksay) ---
+      if (s.volume > 0 && Math.abs(s.volume - state.volume) > 0.03) {
+        state.volume = s.volume;
+        applyVolume(); // slider + audio + localStorage güncelle
+      }
+
+    } catch(e) { /* sessizce atla */ }
   }
 
   // ---------------- list ----------------
@@ -242,6 +303,7 @@ const Player = (() => {
     loadTrackMeta(filename);
     markRow();
     showMini();
+    markLocalChange(); // Yerel değişiklik — diğer cihazlardan gelen echo'yu engelle
 
     // Radyo çalıyorsa durdur (çakışma önleme)
     if (window.__radioStop) window.__radioStop();
@@ -429,11 +491,19 @@ const Player = (() => {
   // ---------------- bindings ----------------
   function bindControls() {
     el.play.onclick = togglePlay;
-    el.next.onclick = next;
-    el.prev.onclick = prev;
-    el.shuffle.onclick = () => { state.isShuffle = !state.isShuffle; syncToggleButtons(); save(); };
-    el.loop.onclick = () => { state.isLoop = !state.isLoop; syncToggleButtons(); save(); };
-    el.mute.onclick = () => { state.muted = !state.muted; applyVolume(); save(); };
+    el.next.onclick = () => { markLocalChange(); next(); };
+    el.prev.onclick = () => { markLocalChange(); prev(); };
+    el.shuffle.onclick = () => {
+      state.isShuffle = !state.isShuffle; syncToggleButtons(); save();
+      markLocalChange();
+      if (state.device !== 'browser') API.postSharedState({ isShuffle: state.isShuffle });
+    };
+    el.loop.onclick = () => {
+      state.isLoop = !state.isLoop; syncToggleButtons(); save();
+      markLocalChange();
+      if (state.device !== 'browser') API.postSharedState({ isLoop: state.isLoop });
+    };
+    el.mute.onclick = () => { state.muted = !state.muted; applyVolume(); save(); markLocalChange(); };
 
     // real audio events
     if (audio) {
@@ -485,6 +555,13 @@ const Player = (() => {
     const wasPlaying = state.isPlaying;
     state.device = id;
     save();
+
+    // Cihaz değişince sync'i güncelle
+    if (id === 'browser') {
+      stopSharedStateSync();
+    } else {
+      startSharedStateSync();
+    }
 
     // Radyo çalıyor mu? (radio modülü global flag kullanır)
     const radioActive = window.__radioIsPlaying && window.__radioIsPlaying();

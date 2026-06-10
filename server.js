@@ -690,6 +690,15 @@ let serverPlayerState = {
     lastVolume: 70  // mpg123 percent (0-100), default %70
 };
 
+// Tüm cihazlara yayılan paylaşımlı state
+let sharedState = {
+    file:      null,    // Çalan şarkı dosya adı
+    isShuffle: false,
+    isLoop:    false,
+    volume:    0.7,     // 0-1 arası (cubic eğri öncesi ham değer)
+    updatedAt: 0,       // Son değişiklik timestamp (ms) — conflict tespiti için
+};
+
 // --- ANTİ-BUZZ: aplay yerine mpg123 ile sessiz ses çal (ALSA'yı bloklamaz) ---
 // Not: aplay -D default /dev/zero ALSA'yı exclus lock'layıp mpg123'ün açmasını engelliyordu.
 // mpg123 ile sessiz bir WAV döngüsü yerine, tamamen kaldırdık çünkü dmix zaten karıştırmayı
@@ -727,6 +736,10 @@ app.post('/api/music/play-server', (req, res) => {
     const filePath = path.join(config.uploadPath, filename);
 
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Dosya bulunamadı' });
+
+    // Paylaşımlı state güncelle — diğer cihazlar bu değişikliği polling ile öğrenir
+    sharedState.file      = filename;
+    sharedState.updatedAt = Date.now();
 
     // Her ikisini de durdur (müzik veya radyo çalıyor olabilir)
     killAllServerAudio();
@@ -797,6 +810,8 @@ app.post('/api/music/stop-server', (req, res) => {
         currentServerProcess = null;
     }
     serverPlayerState.isPlaying = false;
+    sharedState.file      = null;
+    sharedState.updatedAt = Date.now();
     res.json({ success: true });
 });
 
@@ -816,6 +831,8 @@ app.post('/api/music/volume-server', (req, res) => {
         // mpg123 V komutu: 0-100 lineer (cubic sonrası)
         const percent = Math.round(cubic * 100);
         serverPlayerState.lastVolume = percent;
+        sharedState.volume    = vol01;     // Ham değeri sakla (client'a 0-1 gönder)
+        sharedState.updatedAt = Date.now();
         if (currentServerProcess) {
             currentServerProcess.stdin.write(`V ${percent}\n`);
         }
@@ -845,6 +862,34 @@ app.get('/api/music/status-server', (req, res) => {
         time:     serverPlayerState.currentSec,
         duration: serverPlayerState.totalSec,
     });
+});
+
+// --- PAYLAŞIMLI OYNATICI STATE (Çok cihaz senkronizasyonu) ---
+app.get('/api/player/shared-state', (req, res) => {
+    res.json({
+        file:      sharedState.file,
+        isShuffle: sharedState.isShuffle,
+        isLoop:    sharedState.isLoop,
+        volume:    sharedState.volume,
+        updatedAt: sharedState.updatedAt,
+        // Gerçek zamanlı playback bilgisi (mpg123'ten)
+        isPlaying:  serverPlayerState.isPlaying,
+        currentSec: serverPlayerState.currentSec,
+        totalSec:   serverPlayerState.totalSec,
+    });
+});
+
+app.post('/api/player/shared-state', (req, res) => {
+    const { isShuffle, isLoop } = req.body;
+    let changed = false;
+    if (isShuffle !== undefined && sharedState.isShuffle !== isShuffle) {
+        sharedState.isShuffle = isShuffle; changed = true;
+    }
+    if (isLoop !== undefined && sharedState.isLoop !== isLoop) {
+        sharedState.isLoop = isLoop; changed = true;
+    }
+    if (changed) sharedState.updatedAt = Date.now();
+    res.json({ success: true });
 });
 
 app.post('/api/music/seek-server', (req, res) => {
